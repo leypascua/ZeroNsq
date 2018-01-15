@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27004.2009
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeroNsq", "ZeroNsq\ZeroNsq.csproj", "{E8BC6A06-5D97-43BA-90EC-10A0BD5B0E6A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZeroNsq", "ZeroNsq\ZeroNsq.csproj", "{E8BC6A06-5D97-43BA-90EC-10A0BD5B0E6A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeroNsq.Test", "ZeroNsq.Test\ZeroNsq.Test.csproj", "{38760DE1-7C6E-4B04-91CE-A5CC59427BC3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZeroNsq.Tests", "C:\Users\pascua\Documents\Visual Studio 2017\Projects\ZeroNsq\ZeroNsq.Tests\ZeroNsq.Tests.csproj", "{841A847E-D9A2-4013-90D7-92733CCCB0A0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{E8BC6A06-5D97-43BA-90EC-10A0BD5B0E6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E8BC6A06-5D97-43BA-90EC-10A0BD5B0E6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E8BC6A06-5D97-43BA-90EC-10A0BD5B0E6A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{38760DE1-7C6E-4B04-91CE-A5CC59427BC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{38760DE1-7C6E-4B04-91CE-A5CC59427BC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{38760DE1-7C6E-4B04-91CE-A5CC59427BC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{38760DE1-7C6E-4B04-91CE-A5CC59427BC3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
