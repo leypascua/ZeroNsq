@@ -13,8 +13,7 @@ namespace ZeroNsq
         private const int FrameSizeLength = 4;
         private const int FrameTypeLength = 4;
         
-        private readonly Stream _stream;        
-        private readonly object _syncLock = new object();
+        private readonly Stream _stream;                
 
         public FrameReader(Stream stream)
         {
@@ -91,11 +90,6 @@ namespace ZeroNsq
             ReadBytes(stream, buffer, offset, frameLength);
 
             return buffer;
-        }
-
-        private static byte[] GetPooledBuffer(int length)
-        {
-            return ArrayPool<byte>.Shared.Rent(length);
         }
 
         private static void ReadBytes(Stream stream, byte[] buffer, int offset, int length)

@@ -20,15 +20,15 @@ namespace ZeroNsq
         /// Gets or sets the data
         /// </summary>
         public byte[] Data { get; set; }
+    }
 
-        /// <summary>
-        /// Gets the readable UTF8 string data.
-        /// </summary>
-        /// <returns></returns>
-        public string ToUtf8String()
+    public static class FrameExtensions
+    {
+        public static Message ToMessage(this Frame frame)
         {
-            if (Data == null || Data.Length == 0) return string.Empty;
-            return Encoding.UTF8.GetString(Data, 0, Data.Length);
+            if (frame.Type != FrameType.Message) return null;
+
+            return new Message(frame.Data);
         }
     }
 }
