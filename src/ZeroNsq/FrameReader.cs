@@ -22,8 +22,8 @@ namespace ZeroNsq
 
         public Frame ReadFrame()
         {
-            int frameLength = ReadFrameLength(_stream);
-            FrameType frameType = ReadFrameType(_stream);
+            int frameLength = ReadInt32(_stream, FrameSizeLength);
+            FrameType frameType = (FrameType)ReadInt32(_stream, FrameTypeLength);
             byte[] data = ReadFrameData(_stream, frameLength);
 
             return new Frame
@@ -34,42 +34,23 @@ namespace ZeroNsq
             };
         }
 
-        private static int ReadFrameLength(Stream stream)
+        private static int ReadInt32(Stream stream, int bufferLength)
         {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(FrameSizeLength);
-            int frameLength = 0;
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            int result = 0;
 
             try
             {
                 int offset = 0;
                 ReadBytes(stream, buffer, offset, FrameSizeLength);
-                frameLength = BitConverter.ToInt32(buffer, 0);
+                result = BitConverter.ToInt32(buffer, 0);
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
             }
 
-            return frameLength;
-        }
-
-        private static FrameType ReadFrameType(Stream stream)
-        {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(FrameSizeLength);
-            int frameType = 0;
-
-            try
-            {
-                int offset = 0;
-                ReadBytes(stream, buffer, offset, FrameTypeLength);
-                frameType = BitConverter.ToInt32(buffer, 0);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-            }
-
-            return (FrameType)frameType;
+            return result;
         }
 
         private static byte[] ReadFrameData(Stream stream, int frameLength)
@@ -77,16 +58,6 @@ namespace ZeroNsq
             byte[] buffer = new byte[frameLength];
 
             int offset = 0;
-            ReadBytes(stream, buffer, offset, frameLength);
-
-            return buffer;
-        }
-
-        private static byte[] ReadFrame(Stream stream, int frameLength)
-        {
-            byte[] buffer = new byte[frameLength];
-            int offset = 0;
-
             ReadBytes(stream, buffer, offset, frameLength);
 
             return buffer;
