@@ -7,45 +7,13 @@ namespace ZeroNsq
 {
     public class Frame
     {
-        /// <summary>
-        /// Gets or sets the type of frame
-        /// </summary>
-        public FrameType Type { get; set; }
+        public Frame() { }
 
-        public static Frame Response(string text)
+        public Frame(FrameType type, byte[] data)
         {
-            var bytes = Encoding.UTF8.GetBytes(text);
-
-            return new Frame
-            {
-                Type = FrameType.Response,
-                MessageSize = bytes.Length,
-                Data = bytes
-            };
-        }
-
-        public static Frame Message(Message msg)
-        {
-            var bytes = msg.ToByteArray();
-
-            return new Frame
-            {
-                Type = FrameType.Message,
-                MessageSize = bytes.Length,
-                Data = bytes
-            };
-        }
-
-        public static Frame Error(string errorCode)
-        {
-            var bytes = Encoding.ASCII.GetBytes(errorCode);
-
-            return new Frame
-            {
-                Type = FrameType.Error,
-                MessageSize = bytes.Length,
-                Data = bytes
-            };
+            Type = type;
+            Data = data;
+            MessageSize = data.Length;
         }
 
         /// <summary>
@@ -54,9 +22,32 @@ namespace ZeroNsq
         public int MessageSize { get; set; }
 
         /// <summary>
+        /// Gets or sets the type of frame
+        /// </summary>
+        public FrameType Type { get; set; }
+
+        /// <summary>
         /// Gets or sets the data
         /// </summary>
         public byte[] Data { get; set; }
+
+        public static Frame Response(string text)
+        {
+            var bytes = Encoding.UTF8.GetBytes(text);
+            return new Frame(FrameType.Response, bytes);
+        }
+
+        public static Frame Message(Message msg)
+        {
+            var bytes = msg.ToByteArray();
+            return new Frame(FrameType.Message, bytes);
+        }
+
+        public static Frame Error(string errorCode)
+        {
+            var bytes = Encoding.ASCII.GetBytes(errorCode);
+            return new Frame(FrameType.Error, bytes);
+        }
     }
 
     public static class FrameExtensions
@@ -77,17 +68,22 @@ namespace ZeroNsq
 
         public static byte[] ToByteArray(this Frame frame)
         {   
-            byte[] sizeBuffer = BitConverter.GetBytes(frame.Data.Length);
-            byte[] frameTypeBuffer = BitConverter.GetBytes((int)frame.Type);
-
-            using (var ms = new MemoryStream())
-            {
-                ms.WriteBytes(sizeBuffer);
-                ms.WriteBytes(frameTypeBuffer);
-                ms.WriteBytes(frame.Data);
-
+            using (var ms = ToStream(frame) as MemoryStream)
+            {   
                 return ms.ToArray();
             }
+        }
+
+        public static Stream ToStream(this Frame frame)
+        {
+            var ms = new MemoryStream();
+            ms.WriteInt32(frame.Data.Length);
+            ms.WriteInt32((int)frame.Type);
+            ms.WriteBytes(frame.Data);
+
+            ms.Position = 0;
+
+            return ms;
         }
     }
 }

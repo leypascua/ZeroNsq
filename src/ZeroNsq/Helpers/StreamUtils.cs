@@ -22,25 +22,35 @@ namespace ZeroNsq
         public static Stream WriteInt16(this Stream stream, short value)
         {
             byte[] buffer = BitConverter.GetBytes(value);
-            return WriteBytes(stream, buffer);
+            return WriteNumeric(stream, buffer);
         }
 
         public static Stream WriteInt32(this Stream stream, int value)
         {
             byte[] buffer = BitConverter.GetBytes(value);
-            return WriteBytes(stream, buffer);
+            return WriteNumeric(stream, buffer);
         }
 
         public static Stream WriteInt64(this Stream stream, long value)
         {
             byte[] buffer = BitConverter.GetBytes(value);
-            return WriteBytes(stream, buffer);
+            return WriteNumeric(stream, buffer);
         }
 
         public static Stream WriteBytes(this Stream stream, byte[] buffer)
         {
             stream.Write(buffer, 0, buffer.Length);
             return stream;
+        }
+
+        private static Stream WriteNumeric(this Stream stream, byte[] buffer)
+        {
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(buffer);
+            }
+
+            return WriteBytes(stream, buffer);
         }
     }
 }

@@ -47,8 +47,7 @@ namespace ZeroNsq
 
             using (var ms = new MemoryStream())
             {
-                WriteTo(ms);
-                ms.Position = 0;
+                WriteTo(ms);                
                 return ms.ToArray();
             }
         }
@@ -61,10 +60,10 @@ namespace ZeroNsq
 
         public void WriteTo(Stream stream)
         {
-            stream.Write(BitConverter.GetBytes(Timestamp), 0, TimestampHeaderLength);
-            stream.Write(BitConverter.GetBytes(Attempts), 0, AttemptsHeaderLength);
-            stream.Write(Encoding.ASCII.GetBytes(Id), 0, MessageIdHeaderLength);
-            stream.Write(Body, 0, Body.Length);
+            stream.WriteInt64(Timestamp);
+            stream.WriteInt16(Attempts);
+            stream.WriteASCII(Id);
+            stream.WriteBytes(Body);
             stream.Flush();
         }
 

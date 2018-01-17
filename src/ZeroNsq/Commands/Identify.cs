@@ -7,7 +7,7 @@ using System.Text;
 
 namespace ZeroNsq.Commands
 {   
-    public class Identify : IProtocolCommandWithResponse
+    public class Identify : IProtocolCommand
     {   
         private static readonly byte[] CommandHeader = Encoding.ASCII.GetBytes("IDENTIFY\n");
 
@@ -39,19 +39,34 @@ namespace ZeroNsq.Commands
 
         public byte[] ToByteArray()
         {
-            using (var ms = new MemoryStream())
+            using (var ms = new MemoryStream())            
+            {   
+                ms.WriteBytes(CommandHeader);
+
+                byte[] data = GetDataBytes(this);
+                byte[] dataLength = BitConverter.GetBytes(data.Length);
+
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(dataLength);
+                }
+
+                ms.WriteBytes(dataLength);
+                ms.WriteBytes(data);
+
+                return ms.ToArray();
+            }
+        }
+
+        private static byte[] GetDataBytes(object instance)
+        {
             using (var dataStream = new MemoryStream())
             using (var textWriter = new StreamWriter(dataStream))
             {
-                JSON.Serialize(this, textWriter, Options.ExcludeNulls);
+                JSON.Serialize(instance, textWriter, Options.ExcludeNulls);
+                textWriter.Flush();
 
-                byte[] data = dataStream.ToArray();
-                ms.Write(CommandHeader, 0, CommandHeader.Length);
-                byte[] dataLength = BitConverter.GetBytes(data.Length);
-                ms.Write(dataLength, 0, dataLength.Length);
-                ms.Write(data, 0, data.Length);
-
-                return ms.ToArray();
+                return dataStream.ToArray();
             }
         }
     }

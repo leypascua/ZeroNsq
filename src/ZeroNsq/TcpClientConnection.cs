@@ -4,12 +4,16 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 using ZeroNsq.Commands;
 
 namespace ZeroNsq
 {
     public class TcpClientConnection : IClientConnection, IDisposable
     {
+        private static readonly byte[] Heartbeat = Encoding.ASCII.GetBytes("_heartbeat_");
+
         private bool _disposedValue = false; // To detect redundant calls
         private readonly DnsEndPoint _endpoint;
         private TcpClient _tcpClient;
@@ -68,12 +72,14 @@ namespace ZeroNsq
 
             switch (frame.Type)
             {
-                case FrameType.Response:                    
+                case FrameType.Response:
+                    if (frame.Data.SequenceEqual(Heartbeat)) return ProtocolResponse.Success;
+                    return new ProtocolResponse(frame.Data);
                 case FrameType.Error:
                     return new ProtocolResponse(frame.Data);
                 case FrameType.Message:
                     ///TODO: Just push to a queue so we don't
-                    ///      lose any incoming message while
+                    ///      lose any incoming messages while
                     ///      we're waiting for a response for the
                     ///      last submitted request.
                     if (_onMessageReceivedCallback != null)
@@ -123,19 +129,6 @@ namespace ZeroNsq
             return connection._networkStream;
         }
 
-        private static void CloseConnection(IClientConnection connection)
-        {
-            try
-            {
-                connection.Write(Close.CommandHeader);
-            }
-            catch
-            {
-                // ignore all errors since we're closing the 
-                // connection anyway.
-            }
-        }
-
         #region IDisposable Support
 
         protected virtual void Dispose(bool disposing)
@@ -146,8 +139,7 @@ namespace ZeroNsq
                 {
                     // TODO: dispose managed state (managed objects).
                     if (IsOpen)
-                    {
-                        CloseConnection(this);
+                    {   
                         _tcpClient.Dispose();
                         _tcpClient = null;
                     }

@@ -16,6 +16,9 @@ namespace ZeroNsq
         private readonly ConnectionOptions _options;
         private bool _disposedValue = false; // To detect redundant calls
 
+        public NsqdConnection(string host, int port, ConnectionOptions options = null) 
+            : this(new DnsEndPoint(host, port), options, null) { }
+
         public NsqdConnection(DnsEndPoint endpoint, ConnectionOptions options = null, IClientConnection clientConnection = null)
         {
             _endpoint = endpoint;
@@ -24,6 +27,11 @@ namespace ZeroNsq
         }
 
         protected virtual IClientConnection Client { get; private set; }
+
+        public void Publish(string topicName, string utf8String)
+        {
+            this.Publish(topicName, Encoding.UTF8.GetBytes(utf8String));
+        }
 
         public void Publish(string topicName, byte[] rawMessage)
         {
@@ -79,6 +87,13 @@ namespace ZeroNsq
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects).
+                    this.Client.Write(Close.CommandHeader);
+                    if (this.Client is IDisposable)
+                    {
+                        var disposableClient = this.Client as IDisposable;
+                        disposableClient.Dispose();
+                        this.Client = null;
+                    }
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

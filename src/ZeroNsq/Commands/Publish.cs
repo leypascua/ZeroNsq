@@ -26,9 +26,11 @@ namespace ZeroNsq.Commands
 
             using (var ms = new MemoryStream())
             {
-                ms.WriteBytes(CommandHeader);
-                byte[] topicBytes = Encoding.ASCII.GetBytes(TopicName + "\n");
+                ms.WriteBytes(CommandHeader);                
                 ms.WriteASCII(TopicName + "\n");
+
+                ms.WriteInt32(Data.Length);
+                ms.WriteBytes(Data);
 
                 return ms.ToArray();
             }

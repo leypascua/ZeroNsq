@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZeroNsq", "ZeroNsq\ZeroNsq.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZeroNsq.Tests", "C:\Users\pascua\Documents\Visual Studio 2017\Projects\ZeroNsq\ZeroNsq.Tests\ZeroNsq.Tests.csproj", "{841A847E-D9A2-4013-90D7-92733CCCB0A0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeroNsq.SimpleExample", "ZeroNsq.SimpleExample\ZeroNsq.SimpleExample.csproj", "{A11B1BD7-C074-421E-BF6B-8147A6F97819}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{841A847E-D9A2-4013-90D7-92733CCCB0A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A11B1BD7-C074-421E-BF6B-8147A6F97819}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A11B1BD7-C074-421E-BF6B-8147A6F97819}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A11B1BD7-C074-421E-BF6B-8147A6F97819}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A11B1BD7-C074-421E-BF6B-8147A6F97819}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

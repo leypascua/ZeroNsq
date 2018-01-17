@@ -12,8 +12,10 @@ namespace ZeroNsq
         private const int DefaultMaxFrameLength = 1048576;
         private const int FrameSizeLength = 4;
         private const int FrameTypeLength = 4;
-        
-        private readonly Stream _stream;                
+
+        private readonly byte[] FrameSizeBuffer = new byte[FrameSizeLength];
+        private readonly byte[] FrameTypeBuffer = new byte[FrameTypeLength];
+        private readonly Stream _stream;
 
         public FrameReader(Stream stream)
         {
@@ -22,35 +24,33 @@ namespace ZeroNsq
 
         public Frame ReadFrame()
         {
-            int frameLength = ReadInt32(_stream, FrameSizeLength);
-            FrameType frameType = (FrameType)ReadInt32(_stream, FrameTypeLength);
+            int frameLength = ReadFrameLength();
+            FrameType frameType = ReadFrameType();
             byte[] data = ReadFrameData(_stream, frameLength);
 
-            return new Frame
-            {
-                MessageSize = frameLength,
-                Type = frameType,
-                Data = data
-            };
+            return new Frame(frameType, data);
         }
 
-        private static int ReadInt32(Stream stream, int bufferLength)
+        private int ReadFrameLength()
         {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
-            int result = 0;
+            _stream.Read(FrameSizeBuffer, 0, FrameSizeLength);
+            return ToInt32(FrameSizeBuffer);
+        }
 
-            try
+        private FrameType ReadFrameType()
+        {
+            _stream.Read(FrameTypeBuffer, 0, FrameTypeLength);
+            return (FrameType)ToInt32(FrameTypeBuffer);
+        }
+
+        private static int ToInt32(byte[] buffer)
+        {
+            if (BitConverter.IsLittleEndian)
             {
-                int offset = 0;
-                ReadBytes(stream, buffer, offset, FrameSizeLength);
-                result = BitConverter.ToInt32(buffer, 0);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+                Array.Reverse(buffer);
             }
 
-            return result;
+            return BitConverter.ToInt32(buffer, 0);
         }
 
         private static byte[] ReadFrameData(Stream stream, int frameLength)
@@ -58,12 +58,12 @@ namespace ZeroNsq
             byte[] buffer = new byte[frameLength];
 
             int offset = 0;
-            ReadBytes(stream, buffer, offset, frameLength);
+            buffer = ReadBytes(stream, buffer, offset, frameLength);
 
             return buffer;
         }
 
-        private static void ReadBytes(Stream stream, byte[] buffer, int offset, int length)
+        private static byte[] ReadBytes(Stream stream, byte[] buffer, int offset, int length)
         {
             int bytesRead;
             int bytesLeft = length;
@@ -75,6 +75,8 @@ namespace ZeroNsq
                 if (offset > length) throw new InvalidOperationException("Buffer is longer than expected.");
                 if (offset == length) break;
             }
+
+            return buffer;
         }
     }
 }
