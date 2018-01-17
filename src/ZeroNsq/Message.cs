@@ -33,69 +33,6 @@ namespace ZeroNsq
             }
         }
 
-        private static byte[] ReadBody(Stream ms)
-        {
-            long size = ms.Length - ms.Position;
-            byte[] buffer = new byte[size];
-            ms.Read(buffer, 0, (int)size);
-
-            return buffer;
-        }
-
-        private static string ReadMessageId(MemoryStream ms)
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(MessageIdHeaderLength);
-            string result = string.Empty;
-
-            try
-            {
-                ms.Read(buffer, 0, MessageIdHeaderLength);
-                result = Encoding.UTF8.GetString(buffer);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-
-            return result;
-        }
-
-        private static short ReadAttempts(MemoryStream ms)
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(AttemptsHeaderLength);
-            short result = 0;
-
-            try
-            {
-                ms.Read(buffer, 0, AttemptsHeaderLength);
-                result = BitConverter.ToInt16(buffer, 0);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-            }
-
-            return result;
-        }
-
-        private static long ReadTimestamp(MemoryStream ms)
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(TimestampHeaderLength);
-            long result = 0;
-
-            try
-            {
-                ms.Read(buffer, 0, TimestampHeaderLength);
-                result = BitConverter.ToInt64(buffer, 0);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-            }
-
-            return result;
-        }
-
         public long Timestamp { get; set; }
 
         public short Attempts { get; set; }
@@ -129,6 +66,69 @@ namespace ZeroNsq
             stream.Write(Encoding.ASCII.GetBytes(Id), 0, MessageIdHeaderLength);
             stream.Write(Body, 0, Body.Length);
             stream.Flush();
+        }
+
+        private static byte[] ReadBody(Stream ms)
+        {
+            long size = ms.Length - ms.Position;
+            byte[] buffer = new byte[size];
+            ms.Read(buffer, 0, (int)size);
+
+            return buffer;
+        }
+
+        private static string ReadMessageId(Stream ms)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(MessageIdHeaderLength);
+            string result = string.Empty;
+
+            try
+            {
+                ms.Read(buffer, 0, MessageIdHeaderLength);
+                result = Encoding.UTF8.GetString(buffer);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+
+            return result;
+        }
+
+        private static short ReadAttempts(Stream ms)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(AttemptsHeaderLength);
+            short result = 0;
+
+            try
+            {
+                ms.Read(buffer, 0, AttemptsHeaderLength);
+                result = BitConverter.ToInt16(buffer, 0);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            }
+
+            return result;
+        }
+
+        private static long ReadTimestamp(Stream ms)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(TimestampHeaderLength);
+            long result = 0;
+
+            try
+            {
+                ms.Read(buffer, 0, TimestampHeaderLength);
+                result = BitConverter.ToInt64(buffer, 0);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            }
+
+            return result;
         }
 
         private void EnsureNonEmptyBody()
