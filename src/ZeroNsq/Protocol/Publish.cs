@@ -9,13 +9,13 @@ namespace ZeroNsq.Protocol
     {
         public Publish(string topic, string utf8String)
         {
-            TopicName = topic;
+            TopicName = topic.EnforceValidNsqName();
             Data = Encoding.UTF8.GetBytes(utf8String);
         }
 
         public Publish(string topic, byte[] data)
         {
-            TopicName = topic;
+            TopicName = topic.EnforceValidNsqName();
             Data = data;
         }
 
