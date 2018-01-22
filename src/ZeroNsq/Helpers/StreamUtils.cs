@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace ZeroNsq
+namespace ZeroNsq.Helpers
 {
     public static class StreamUtils
     {
