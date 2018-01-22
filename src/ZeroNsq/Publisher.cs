@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using ZeroNsq.Protocol;
 
 namespace ZeroNsq
@@ -8,34 +6,25 @@ namespace ZeroNsq
     public class Publisher : IDisposable
     {
         private bool disposedValue = false; // To detect redundant calls
-        private NsqdConnection _connection;
+        private INsqConnection _connection;
+        private readonly ConnectionOptions _options;
 
-        public Publisher(string host, int port, ConnectionOptions options)
+        public Publisher(string host, int port, ConnectionOptions options) : this(new NsqConnectionProxy(host, port, options), options) { }
+
+        public Publisher(INsqConnection connection, ConnectionOptions options)
         {
-            _connection = new NsqdConnection(host, port, options);
+            _connection = connection;
+            _options = options;
         }
 
         public void Publish(string topic, byte[] message)
         {
-            EnsureOpenConnection(_connection);
-
             _connection.SendRequest(new Publish(topic, message));
-            var frame = _connection.ReadFrame();
-
-            if (frame.Type != FrameType.Response)
-            {
-                throw new ProtocolViolationException(
-                    string.Format("Unexpected frame type received when sending a command: {0}", frame.Type.ToString()));
-            }
-
-            
         }
 
-        private static void EnsureOpenConnection(NsqdConnection conn)
+        public void Publish(string topic, string utf8String)
         {
-            if (conn.IsConnected) return;
-
-            conn.Connect();
+            _connection.SendRequest(new Publish(topic, utf8String));
         }
 
         #region IDisposable Support
@@ -71,6 +60,5 @@ namespace ZeroNsq
             // GC.SuppressFinalize(this);
         }
         #endregion
-
     }
 }

@@ -1,16 +1,48 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 
 namespace ZeroNsq
 {
     public class ConnectionOptions
     {
-        public ConnectionOptions() {}
+        const int DefaultMaxClientReconnectionAttempts = 3;
+        const int DefaultInitialBackoffTimeInSeconds = 8;
+        const int DefaultHeartbeatIntervalInSeconds = 30;
+
+        public static readonly ConnectionOptions Default = SetDefaults(null);
+
+        public ConnectionOptions()
+        {
+            MaxClientReconnectionAttempts = DefaultMaxClientReconnectionAttempts;
+            InitialBackoffTimeInSeconds = DefaultInitialBackoffTimeInSeconds;
+        }
 
         public string Hostname { get; set; }
         public string ClientId { get; set; }
         public int? MessageTimeout { get; set; }
         public int? HeartbeatIntervalInSeconds { get; set; }
+
+        public int MaxClientReconnectionAttempts { get; set; }
+        public int InitialBackoffTimeInSeconds { get; set; }
+
+        public static ConnectionOptions SetDefaults(ConnectionOptions options)
+        {
+            var opt = options ?? new ConnectionOptions();
+
+            if (string.IsNullOrEmpty(opt.Hostname)) opt.Hostname = Dns.GetHostName();
+            if (string.IsNullOrEmpty(opt.ClientId)) opt.ClientId = string.Format("{0}@{1}", opt.GetHashCode(), opt.Hostname);
+
+            if (!opt.HeartbeatIntervalInSeconds.HasValue)
+            {
+                opt.HeartbeatIntervalInSeconds = DefaultHeartbeatIntervalInSeconds;
+            }
+
+            if (opt.MaxClientReconnectionAttempts == 0) opt.MaxClientReconnectionAttempts = DefaultMaxClientReconnectionAttempts;
+            if (opt.InitialBackoffTimeInSeconds == 0) opt.InitialBackoffTimeInSeconds = DefaultInitialBackoffTimeInSeconds;
+
+            return opt;
+        }
     }
 }

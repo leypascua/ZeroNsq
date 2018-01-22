@@ -9,6 +9,11 @@ namespace ZeroNsq
         public BaseException(string message) : base(message) { }
     }
 
+    public class SocketException : BaseException
+    {
+        public SocketException(string message) : base(message) { }
+    }
+
     public class ConnectionException : BaseException
     {
         public const string ClosedBeforeResponseReceived = "The connection was forcibly terminated by the host before a valid response was received.";

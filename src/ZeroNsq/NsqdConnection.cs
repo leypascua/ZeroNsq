@@ -10,8 +10,7 @@ namespace ZeroNsq
 {
     public class NsqdConnection : INsqConnection, IDisposable
     {
-        private const int DefaultThreadSleepTime = 250;
-        private const int DefaultHeartbeatIntervalInSeconds = 30;
+        private const int DefaultThreadSleepTime = 250;        
         private const int MaxLastResponseFetchCount = 32;
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
@@ -28,7 +27,7 @@ namespace ZeroNsq
         public NsqdConnection(DnsEndPoint endpoint, ConnectionOptions options = null)
         {
             _endpoint = endpoint;
-            _options = SetDefaultOptions(options);                        
+            _options = ConnectionOptions.SetDefaults(options);                        
         }
 
         public bool IsConnected
@@ -63,11 +62,6 @@ namespace ZeroNsq
                 TaskCreationOptions.LongRunning, 
                 _workerCancellationTokenSource.Token
             );
-        }
-
-        public void SendRequest(byte[] request)
-        {
-            SendRequest(request, false);
         }
 
         public void SendRequest(IRequest request)
@@ -109,6 +103,11 @@ namespace ZeroNsq
             _isIdentified = false;
         }
 
+        internal void SendRequest(byte[] request)
+        {
+            SendRequest(request, false);
+        }
+
         private Frame ReadFrame(int attempts)
         {
             Frame nextFrame = null;
@@ -137,8 +136,7 @@ namespace ZeroNsq
             try
             {
                 // ignore all errors for this command.
-                _connectionResource.WriteBytes(Commands.CLS);
-                Thread.Sleep(DefaultHeartbeatIntervalInSeconds);
+                _connectionResource.WriteBytes(Commands.CLS);                
             }
             catch { }
         }
@@ -314,21 +312,6 @@ namespace ZeroNsq
 
                 throw new ConnectionException("Unable to perform request with a closed connection.");
             }
-        }
-
-        private static ConnectionOptions SetDefaultOptions(ConnectionOptions options)
-        {
-            var opt = options ?? new ConnectionOptions();
-
-            if (string.IsNullOrEmpty(opt.Hostname)) opt.Hostname = Dns.GetHostName();
-            if (string.IsNullOrEmpty(opt.ClientId)) opt.ClientId = string.Format("{0}@{1}", opt.GetHashCode(), opt.Hostname);
-
-            if (!opt.HeartbeatIntervalInSeconds.HasValue)
-            {
-                opt.HeartbeatIntervalInSeconds = DefaultHeartbeatIntervalInSeconds;
-            }
-
-            return opt;
         }
 
         #region IDisposable Support

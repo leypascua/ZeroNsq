@@ -43,7 +43,22 @@ namespace ZeroNsq
             lock (_connectionLock)
             {
                 _tcpClient = new TcpClient();
-                _tcpClient.ConnectAsync(_endpoint.Host, _endpoint.Port).Wait();
+
+                try
+                {
+                    _tcpClient.ConnectAsync(_endpoint.Host, _endpoint.Port).Wait();
+                }                
+                catch (AggregateException ex)
+                {
+                    var socketError = ex.InnerException as System.Net.Sockets.SocketException;
+                    if (socketError != null)
+                    {
+                        throw new SocketException(socketError.Message);
+                    }
+
+                    throw ex.Flatten();
+                }
+                
                 _networkStream = _tcpClient.GetStream();
                 _frameReader = new FrameReader(_networkStream);
             }
