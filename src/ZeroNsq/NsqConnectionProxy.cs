@@ -57,6 +57,16 @@ namespace ZeroNsq
             _rawConnection.Connect();
         }
 
+        void INsqConnection.Close()
+        {
+            if (_rawConnection != null)
+            {
+                _rawConnection.Close();
+                _rawConnection.Dispose();
+                _rawConnection = null;
+            }
+        }
+
         private void Execute(Action<INsqConnection> callback)
         {
             try
@@ -98,12 +108,7 @@ namespace ZeroNsq
 
         public void Dispose()
         {
-            if (_rawConnection != null)
-            {
-                _rawConnection.Close();
-                _rawConnection.Dispose();
-                _rawConnection = null;
-            }
+            (this as INsqConnection).Close();
         }
 
         #endregion

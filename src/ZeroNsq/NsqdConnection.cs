@@ -136,7 +136,8 @@ namespace ZeroNsq
             try
             {
                 // ignore all errors for this command.
-                _connectionResource.WriteBytes(Commands.CLS);                
+                _connectionResource.WriteBytes(Commands.CLS);
+                Thread.Sleep(TimeSpan.FromSeconds(2));
             }
             catch { }
         }

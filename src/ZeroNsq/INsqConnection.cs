@@ -13,6 +13,8 @@ namespace ZeroNsq
 
         void SendRequest(IRequest request);
 
+        void Close();
+
         Frame ReadFrame();
     }
 }

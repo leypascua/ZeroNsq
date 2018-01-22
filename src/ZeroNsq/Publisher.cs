@@ -9,6 +9,8 @@ namespace ZeroNsq
         private INsqConnection _connection;
         private readonly ConnectionOptions _options;
 
+        public Publisher(string host, int port) : this(host, port, ConnectionOptions.Default) { }
+
         public Publisher(string host, int port, ConnectionOptions options) : this(new NsqConnectionProxy(host, port, options), options) { }
 
         public Publisher(INsqConnection connection, ConnectionOptions options)
