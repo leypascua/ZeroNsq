@@ -1,19 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Linq;
-using ZeroNsq.Protocol;
-using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
+using ZeroNsq.Protocol;
 
 namespace ZeroNsq
 {
-    public class NsqdConnection : IDisposable
+    public class NsqdConnection : INsqConnection, IDisposable
     {
         private const int DefaultThreadSleepTime = 250;
         private const int DefaultHeartbeatIntervalInSeconds = 30;
@@ -25,6 +20,7 @@ namespace ZeroNsq
         private bool _disposedValue = false; // To detect redundant calls         
         private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();
         private Task _workerTask;
+        private CancellationTokenSource _workerCancellationTokenSource;
 
         public NsqdConnection(string host, int port, ConnectionOptions options = null) 
             : this(new DnsEndPoint(host, port), options) { }
@@ -39,10 +35,15 @@ namespace ZeroNsq
         {
             get
             {
+                bool workerIsRunning =
+                    _workerTask != null &&                    
+                    !_workerTask.IsFaulted && 
+                    !_workerTask.IsCompleted; 
+
                 return _connectionResource != null &&
                        _connectionResource.IsInitialized &&
                        _isIdentified &&
-                       (_workerTask != null && (!_workerTask.IsFaulted && !_workerTask.IsCompleted)) &&
+                       workerIsRunning &&
                        !_disposedValue;
             }
         }
@@ -53,7 +54,15 @@ namespace ZeroNsq
 
             Initialize(this);
             PerformHandshake(_options);
-            _workerTask = Task.Factory.StartNew(WorkerLoop, TaskCreationOptions.LongRunning);
+
+            // start the worker and wait for incoming messages
+            _workerCancellationTokenSource = new CancellationTokenSource();
+
+            _workerTask = Task.Factory.StartNew(
+                s => WorkerLoop(), 
+                TaskCreationOptions.LongRunning, 
+                _workerCancellationTokenSource.Token
+            );
         }
 
         public void SendRequest(byte[] request)
@@ -66,28 +75,30 @@ namespace ZeroNsq
             SendRequest(request, isForced: false);
         }
 
-        public Frame ReadFrame(int attempts = 0)
+        public Frame ReadFrame()
         {
-            Frame nextFrame = null;
-
-            if (_receivedFramesQueue.Count > 0)
-            {
-                _receivedFramesQueue.TryDequeue(out nextFrame);
-            }
-
-            if (attempts <= MaxLastResponseFetchCount && nextFrame == null)
-            {
-                Thread.Sleep(DefaultThreadSleepTime);
-                nextFrame = ReadFrame(attempts + 1);
-            }
-
-            return nextFrame;
+            return ReadFrame(0);
         }
 
         public void Close()
         {
             if (!IsConnected) return;
             DispatchCls();
+
+            if (_workerCancellationTokenSource != null)
+            {
+                _workerCancellationTokenSource.Cancel();
+                _workerCancellationTokenSource.Dispose();
+                _workerCancellationTokenSource = null;
+
+                try
+                {
+                    _workerTask.Dispose();
+                }
+                catch { }
+
+                _workerTask = null;
+            }
 
             if (_connectionResource != null)
             {
@@ -96,6 +107,29 @@ namespace ZeroNsq
             }
 
             _isIdentified = false;
+        }
+
+        private Frame ReadFrame(int attempts)
+        {
+            Frame nextFrame = null;
+
+            if (_receivedFramesQueue.Count > 0)
+            {
+                _receivedFramesQueue.TryDequeue(out nextFrame);
+            }
+
+            if (nextFrame == null && !IsConnected)
+            {
+                throw new ConnectionException(ConnectionException.ClosedBeforeResponseReceived);
+            }
+
+            if (attempts <= MaxLastResponseFetchCount && nextFrame == null)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(1));
+                nextFrame = ReadFrame(attempts + 1);
+            }
+
+            return nextFrame;
         }
 
         private void DispatchCls()
@@ -118,8 +152,14 @@ namespace ZeroNsq
             if (!isResponseExpected) return;
 
             var response = FetchLastResponse();
+            
             if (response == null)
             {
+                if (!IsConnected)
+                {
+                    throw new ConnectionException(ConnectionException.ClosedBeforeResponseReceived);
+                }
+
                 throw new ProtocolViolationException("A valid response was not received for the last sent request.");
             }
 
@@ -172,8 +212,7 @@ namespace ZeroNsq
                 }
                 catch (ConnectionException)
                 {
-                    Close();
-                    System.Diagnostics.Trace.WriteLine("Workerloop ended.");
+                    Close();                    
                     throw;
                 }
 
@@ -184,8 +223,6 @@ namespace ZeroNsq
 
                 Thread.Sleep(DefaultThreadSleepTime);
             }
-
-            System.Diagnostics.Trace.WriteLine("Workerloop ended.");
         }
 
         private void OnFrameReceived(Frame frame)
@@ -259,10 +296,23 @@ namespace ZeroNsq
             {
                 if (instance._workerTask != null && instance._workerTask.IsFaulted)
                 {
-                    throw instance._workerTask.Exception.Flatten();
+                    var flatException = instance._workerTask.Exception.Flatten();
+
+                    var knownErrors = flatException.InnerExceptions
+                        .Where(error => error is BaseException)
+                        .Select(x => x.Message)
+                        .ToArray();
+
+                    if (knownErrors.Any())
+                    {
+                        string message = string.Join(";", knownErrors);
+                        throw new ConnectionException("One or more errors occurred. " + message);
+                    }
+
+                    throw flatException;
                 }
 
-                throw new InvalidOperationException("Unable to perform request with a closed connection.");
+                throw new ConnectionException("Unable to perform request with a closed connection.");
             }
         }
 
