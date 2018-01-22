@@ -19,14 +19,18 @@ namespace ZeroNsq
             _stream = stream;
         }
 
+        public bool IsBusy { get; private set; }
+
         public Frame ReadFrame()
         {
             try
             {
+                IsBusy = true;
                 int frameLength = ReadFrameLength();
                 FrameType frameType = ReadFrameType();
                 int messageSize = frameLength - Frame.FrameTypeLength;
                 byte[] data = ReadFrameData(_stream, messageSize);
+                IsBusy = false;
                 return new Frame(frameType, data);
             }
             catch (IOException ex)
@@ -36,6 +40,10 @@ namespace ZeroNsq
             catch (ObjectDisposedException)
             {
                 throw new ConnectionException("Connection has been disposed.");
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 

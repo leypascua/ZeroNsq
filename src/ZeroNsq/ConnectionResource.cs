@@ -30,6 +30,14 @@ namespace ZeroNsq
             }
         }
 
+        public bool IsReaderBusy
+        {
+            get
+            {
+                return IsInitialized && _frameReader.IsBusy;
+            }
+        }
+
         public ConnectionResource Initialize(bool isForced = false)
         {
             if (!isForced)

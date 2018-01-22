@@ -10,8 +10,8 @@ namespace ZeroNsq
 {
     public class NsqdConnection : INsqConnection, IDisposable
     {
-        private const int DefaultThreadSleepTime = 250;        
-        private const int MaxLastResponseFetchCount = 32;
+        private const int DefaultThreadSleepTime = 100;        
+        private const int MaxLastResponseFetchCount = 64;
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
         private ConnectionResource _connectionResource;
@@ -70,8 +70,40 @@ namespace ZeroNsq
         }
 
         public Frame ReadFrame()
-        {
-            return ReadFrame(0);
+        {   
+            int attempts = 0;
+
+            do
+            {
+                Frame nextFrame = null;
+
+                if (_receivedFramesQueue.Count > 0)
+                {
+                    _receivedFramesQueue.TryDequeue(out nextFrame);
+                }
+
+                // return the last retrieved frame.
+                if (nextFrame != null) return nextFrame;
+
+                if (!IsConnected)
+                {
+                    throw new ConnectionException(ConnectionException.ClosedBeforeResponseReceived);
+                }
+
+                if (attempts <= MaxLastResponseFetchCount)
+                {
+                    Thread.Sleep(DefaultThreadSleepTime);
+
+                    if (!_connectionResource.IsReaderBusy)
+                    {
+                        attempts++;
+                    }
+                }
+            }
+            while (attempts <= MaxLastResponseFetchCount);
+
+            // did not receive a frame in a timely manner.
+            return null;
         }
 
         public void Close()
@@ -108,29 +140,6 @@ namespace ZeroNsq
             SendRequest(request, false);
         }
 
-        private Frame ReadFrame(int attempts)
-        {
-            Frame nextFrame = null;
-
-            if (_receivedFramesQueue.Count > 0)
-            {
-                _receivedFramesQueue.TryDequeue(out nextFrame);
-            }
-
-            if (nextFrame == null && !IsConnected)
-            {
-                throw new ConnectionException(ConnectionException.ClosedBeforeResponseReceived);
-            }
-
-            if (attempts <= MaxLastResponseFetchCount && nextFrame == null)
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(1));
-                nextFrame = ReadFrame(attempts + 1);
-            }
-
-            return nextFrame;
-        }
-
         private void DispatchCls()
         {
             try
@@ -147,11 +156,15 @@ namespace ZeroNsq
             SendRequest(request.ToByteArray(), isForced);
 
             bool isResponseExpected = request is IRequestWithResponse;
-
             if (!isResponseExpected) return;
 
-            var response = FetchLastResponse();
-            
+            HandleResponse();
+        }
+
+        private void HandleResponse()
+        {
+            Response response = FetchLastResponse();
+
             if (response == null)
             {
                 if (!IsConnected)
@@ -176,6 +189,14 @@ namespace ZeroNsq
                 return null;
             }
 
+            if (frame.Type == FrameType.Response)
+            {
+                string ascii = frame.ToASCII();
+                string error = ascii.StartsWith("E_") ? ascii : null;
+                
+                return new Response(frame.Data, error);
+            }
+
             if (frame.Type == FrameType.Message)
             {
                 Thread.Sleep(DefaultThreadSleepTime);
@@ -186,14 +207,6 @@ namespace ZeroNsq
             if (frame.Type == FrameType.Error)
             {
                 return new Response(frame.Data, frame.ToASCII());
-            }
-
-            if (frame.Type == FrameType.Response)
-            {
-                string ascii = frame.ToASCII();
-                string error = ascii.StartsWith("E_") ? ascii : null;
-                
-                return new Response(frame.Data, error);
             }
 
             throw new NotSupportedException("Unsupported frame type: " + frame.Type.ToString());

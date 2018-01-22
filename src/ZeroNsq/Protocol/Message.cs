@@ -54,6 +54,11 @@ namespace ZeroNsq
 
         public override string ToString()
         {
+            return ToUtf8String();
+        }
+
+        public string ToUtf8String()
+        {
             EnsureNonEmptyBody();
             return Encoding.UTF8.GetString(Body);
         }
