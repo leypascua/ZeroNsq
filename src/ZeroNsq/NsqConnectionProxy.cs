@@ -75,12 +75,12 @@ namespace ZeroNsq
                 }
 
                 AttemptRetry(ex);
-                callback(_rawConnection);
+                Execute(callback);
             }
             catch (ConnectionException ex)
             {
                 AttemptRetry(ex);
-                callback(_rawConnection);
+                Execute(callback);
             }
         }
 
