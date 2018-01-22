@@ -4,17 +4,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
+using ZeroNsq.Protocol;
 
 namespace ZeroNsq
 {
     public class FrameReader
-    {
-        private const int DefaultMaxFrameLength = 1048576;
-        private const int FrameSizeLength = 4;
-        private const int FrameTypeLength = 4;
-
-        private readonly byte[] FrameSizeBuffer = new byte[FrameSizeLength];
-        private readonly byte[] FrameTypeBuffer = new byte[FrameTypeLength];
+    {   
+        private readonly byte[] FrameSizeBuffer = new byte[Frame.FrameSizeLength];
+        private readonly byte[] FrameTypeBuffer = new byte[Frame.FrameTypeLength];
         private readonly Stream _stream;
 
         public FrameReader(Stream stream)
@@ -24,22 +21,33 @@ namespace ZeroNsq
 
         public Frame ReadFrame()
         {
-            int frameLength = ReadFrameLength();
-            FrameType frameType = ReadFrameType();
-            byte[] data = ReadFrameData(_stream, frameLength);
-
-            return new Frame(frameType, data);
+            try
+            {
+                int frameLength = ReadFrameLength();
+                FrameType frameType = ReadFrameType();
+                int messageSize = frameLength - Frame.FrameTypeLength;
+                byte[] data = ReadFrameData(_stream, messageSize);
+                return new Frame(frameType, data);
+            }
+            catch (IOException ex)
+            {
+                throw new ConnectionException("ReadFrame failed. Reason: " + ex.Message);
+            }
+            catch (ObjectDisposedException)
+            {
+                throw new ConnectionException("Connection has been disposed.");
+            }
         }
 
         private int ReadFrameLength()
         {
-            _stream.Read(FrameSizeBuffer, 0, FrameSizeLength);
+            _stream.Read(FrameSizeBuffer, 0, Frame.FrameSizeLength);
             return ToInt32(FrameSizeBuffer);
         }
 
         private FrameType ReadFrameType()
         {
-            _stream.Read(FrameTypeBuffer, 0, FrameTypeLength);
+            _stream.Read(FrameTypeBuffer, 0, Frame.FrameTypeLength);
             return (FrameType)ToInt32(FrameTypeBuffer);
         }
 

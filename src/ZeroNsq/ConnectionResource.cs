@@ -1,0 +1,91 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using ZeroNsq.Protocol;
+
+namespace ZeroNsq
+{
+    public class ConnectionResource : IDisposable
+    {
+        private DnsEndPoint _endpoint;
+        private TcpClient _tcpClient;        
+        private NetworkStream _networkStream;
+        private FrameReader _frameReader;
+        private object _connectionLock = new object();
+        private object _readerLock = new object();
+        private object _writerLock = new object();
+
+        public ConnectionResource(DnsEndPoint endpoint)
+        {
+            _endpoint = endpoint;
+        }
+
+        public bool IsInitialized
+        {
+            get
+            {
+                return _tcpClient != null &&
+                       _tcpClient.Connected;
+            }
+        }
+
+        public ConnectionResource Initialize(bool isForced = false)
+        {
+            if (!isForced)
+            {
+                if (IsInitialized) return this;
+            }
+
+            ReleaseResources();
+
+            lock (_connectionLock)
+            {
+                _tcpClient = new TcpClient();
+                _tcpClient.ConnectAsync(_endpoint.Host, _endpoint.Port).Wait();
+                _networkStream = _tcpClient.GetStream();
+                _frameReader = new FrameReader(_networkStream);
+            }
+
+            return this;
+        }
+
+        public Frame ReadFrame()
+        {
+            lock (_readerLock)
+            {
+                return _frameReader.ReadFrame();
+            }
+        }
+
+        public void WriteBytes(byte[] payload)
+        {
+            lock (_writerLock)
+            {
+                _networkStream.WriteBytes(payload);
+            }
+        }
+
+        public void Dispose()
+        {
+            ReleaseResources();
+        }
+
+        private void ReleaseResources()
+        {
+            if (IsInitialized)
+            {
+                _frameReader = null;
+
+                _networkStream.Close();
+                _networkStream.Dispose();
+                _networkStream = null;
+
+                _tcpClient.Close();
+                _tcpClient.Dispose();
+                _tcpClient = null;
+            }
+        }
+    }
+}
