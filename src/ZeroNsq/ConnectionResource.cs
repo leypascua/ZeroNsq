@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using ZeroNsq.Protocol;
 using ZeroNsq.Helpers;
+using System.Threading.Tasks;
 
 namespace ZeroNsq
 {
@@ -77,16 +78,43 @@ namespace ZeroNsq
         {
             lock (_readerLock)
             {
-                return _frameReader.ReadFrame();
+                try
+                {
+                    var task = ReadFrameAsync();
+                    task.Wait();
+
+                    return task.Result;
+                }
+                catch (AggregateException ex)
+                {
+                    throw ex.InnerException;
+                }
             }
+        }
+
+        public async Task<Frame> ReadFrameAsync()
+        {
+            return await _frameReader.ReadFrameAsync();
         }
 
         public void WriteBytes(byte[] payload)
         {
             lock (_writerLock)
             {
-                _networkStream.WriteBytes(payload);
+                try
+                {
+                    WriteBytesAsync(payload).Wait();
+                }
+                catch (AggregateException ex)
+                {
+                    throw ex.InnerException;
+                }
             }
+        }
+
+        public async Task WriteBytesAsync(byte[] payload)
+        {
+            await _networkStream.WriteAsync(payload, 0, payload.Length);
         }
 
         public void Dispose()

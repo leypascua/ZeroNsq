@@ -2,14 +2,21 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using ZeroNsq.Protocol;
 
-namespace ZeroNsq.Test.FrameReaderTests
+namespace ZeroNsq.Tests.Utils
 {
-    public static class Utils
+    public static class FrameHelpers
     {
-        public static Stream MessageFrame(string data)
+        public static Frame MessageFrame(string data)
         {
-            byte[] dataBuffer = Encoding.UTF8.GetBytes(data);
+            var msg = new Message(data);
+            return Frame.Message(msg);
+        }
+
+        public static Stream MessageFrameStream(Message msg)
+        {
+            byte[] dataBuffer = msg.ToByteArray();
             byte[] sizeBuffer = BitConverter.GetBytes(dataBuffer.Length);
             byte[] frameTypeBuffer = BitConverter.GetBytes((int)FrameType.Message);
 
@@ -23,6 +30,14 @@ namespace ZeroNsq.Test.FrameReaderTests
             stream.Position = 0;
 
             return stream;
+        }
+
+        public static byte[] MessageFrameBytes(Message msg)
+        {
+            using (var stream = MessageFrameStream(msg) as MemoryStream)
+            {
+                return stream.ToArray();
+            }
         }
     }
 }

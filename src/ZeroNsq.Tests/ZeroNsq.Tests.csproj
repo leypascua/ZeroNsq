@@ -16,4 +16,8 @@
     <ProjectReference Include="..\ZeroNsq\ZeroNsq.csproj" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy $(SolutionDir)..\lib\nsq-1.0.0-compat\nsqd.exe $(OutDir)" />
+  </Target>
+
 </Project>
