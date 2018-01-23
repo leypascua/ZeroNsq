@@ -5,6 +5,7 @@ using Xunit;
 using ZeroNsq.Protocol;
 using ZeroNsq.Tests.Utils;
 using ZeroNsq.Helpers;
+using System.Threading.Tasks;
 
 namespace ZeroNsq.Tests
 {
@@ -27,7 +28,7 @@ namespace ZeroNsq.Tests
                 HeartbeatIntervalInSeconds = 3
             };
 
-            using (var nsqd = Nsqd.StartLocal(4150))
+            using (var nsqd = Nsqd.StartLocal())
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, options))
             {
                 conn.Connect();
@@ -39,6 +40,25 @@ namespace ZeroNsq.Tests
                 conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));
                 Assert.Throws<RequestException>(() => conn.SendRequest(new InvalidRequest()));
             }   
+        }
+
+        [Fact]
+        public void ConcurrentPublishingTest()
+        {
+            using (var nsqd = Nsqd.StartLocal())
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, ConnectionOptions.Default))
+            {
+                conn.Connect();
+
+                string message = new string('#', 1024 * 1024);
+
+                var results = Parallel.For(0, 100, idx =>
+                {
+                    conn.SendRequest(new Publish(Nsqd.DefaultTopicName, message));
+                });
+
+                Assert.True(results.IsCompleted);
+            }
         }
 
         [Fact]

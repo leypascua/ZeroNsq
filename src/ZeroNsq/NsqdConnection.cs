@@ -11,7 +11,7 @@ namespace ZeroNsq
     public class NsqdConnection : INsqConnection, IDisposable
     {
         private const int DefaultThreadSleepTime = 100;        
-        private const int MaxLastResponseFetchCount = 64;
+        private const int MaxLastResponseFetchCount = 128;
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
         private ConnectionResource _connectionResource;
