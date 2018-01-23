@@ -16,5 +16,7 @@ namespace ZeroNsq
         void Close();
 
         Frame ReadFrame();
+
+        //INsqConnection OnMessageReceived(Action<Message> callback);
     }
 }

@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Threading;
 using ZeroNsq.Protocol;
+using ZeroNsq.Helpers;
 
 namespace ZeroNsq
 {
@@ -14,7 +15,11 @@ namespace ZeroNsq
         {
             _options = ConnectionOptions.SetDefaults(options);
             _rawConnection = new NsqdConnection(host, port, _options);
+
+            Id = GenerateId(host, port);
         }
+
+        public string Id { get; private set; }
 
         public int ReconnectionAttempts { get; private set; }
 
@@ -24,6 +29,11 @@ namespace ZeroNsq
             {
                 return _rawConnection != null && _rawConnection.IsConnected;
             }
+        }
+
+        public static string GenerateId(string host, int port)
+        {
+            return string.Format("{0}|{1}", host, port).Md5();
         }
 
         public Frame ReadFrame()

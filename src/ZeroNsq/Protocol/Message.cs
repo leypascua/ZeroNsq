@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jil;
+using System;
 using System.Buffers;
 using System.IO;
 using System.Text;
@@ -11,15 +12,15 @@ namespace ZeroNsq
         private const int MessageHeaderLength = 26;
         private const int TimestampHeaderLength = 8;
         private const int AttemptsHeaderLength = 2;
-        private const int MessageIdHeaderLength = 16;        
+        private const int MessageIdHeaderLength = 16;
 
-        public Message() {}
+        public Message() { }
 
         public Message(string data)
         {
             Timestamp = DateTime.UtcNow.ToUnixTimestamp();
             Id = data.Md5().Substring(0, 16);
-            Body = Encoding.UTF8.GetBytes(data);            
+            Body = Encoding.UTF8.GetBytes(data);
         }
 
         public Message(byte[] data)
@@ -47,7 +48,7 @@ namespace ZeroNsq
 
             using (var ms = new MemoryStream())
             {
-                WriteTo(ms);                
+                WriteTo(ms);
                 return ms.ToArray();
             }
         }
@@ -61,6 +62,20 @@ namespace ZeroNsq
         {
             EnsureNonEmptyBody();
             return Encoding.UTF8.GetString(Body);
+        }
+
+        public TResult Deserialize<TResult>() where TResult : class, new()
+        {
+            if (Body == null || Body.Length == 0)
+            {
+                throw new InvalidOperationException("Unable to deserialize an empty message body.");
+            }
+
+            using (var ms = new MemoryStream(Body))
+            using (var reader = new StreamReader(ms))
+            {
+                return JSON.Deserialize<TResult>(reader, Options.ExcludeNulls);
+            }   
         }
 
         public void WriteTo(Stream stream)

@@ -247,6 +247,7 @@ namespace ZeroNsq
                         SendRequest(Commands.NOP);
                         return;
                     }
+
                     break;
             }
 

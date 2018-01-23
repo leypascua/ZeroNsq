@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using ZeroNsq.Protocol;
 
 namespace ZeroNsq
 {
@@ -15,8 +16,13 @@ namespace ZeroNsq
 
     internal class MessageContext : IMessageContext
     {
-        public MessageContext(Message msg)
+        private readonly INsqConnection _connection;
+        private readonly SubscriberOptions _options;
+
+        public MessageContext(INsqConnection conn, Message msg, SubscriberOptions options)
         {
+            _connection = conn;
+            _options = options;
             Message = msg;
         }
 
@@ -24,17 +30,24 @@ namespace ZeroNsq
 
         public void Finish()
         {
-            throw new NotImplementedException();
+            _connection.SendRequest(Commands.New(Commands.Finish(Message.Id)));
         }
 
         public void Requeue()
         {
-            throw new NotImplementedException();
+            if (_options.MaxRetryAttempts < Message.Attempts)
+            {
+                ///TODO: Possibly add a callback to handle this.
+
+                throw new InvalidOperationException("MaxRetryAttempts for the message exceeded.");
+            }
+
+            _connection.SendRequest(Commands.New(Commands.Requeue(Message.Id, 0)));
         }
 
         public void Touch()
         {
-            throw new NotImplementedException();
+            _connection.SendRequest(Commands.New(Commands.Touch(Message.Id)));
         }
     }
 }
