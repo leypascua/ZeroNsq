@@ -6,28 +6,46 @@ using System.Linq;
 using System.Timers;
 using System.Collections.Concurrent;
 using ZeroNsq.Protocol;
+using System.Threading;
 
 namespace ZeroNsq
 {
     public class Subscriber : IDisposable
     {
-        private static readonly TimeSpan DefaultHeartbeatInterval = TimeSpan.FromMinutes(1);
-        private readonly object _monitorConnectionLock = new object();
-        private readonly SubscriberOptions _options;
-        private readonly NsqConnectionFactory _connectionFactory;
-        private readonly ConcurrentDictionary<string, INsqConnection> _connections = new ConcurrentDictionary<string, INsqConnection>();
+        private static readonly int DefaultHeartbeatIntervalInSeconds = 60;
+        private readonly TimeSpan _defaultHeartbeatInterval;
+        private readonly object _startLock = new object();
+        private readonly SubscriberOptions _options;        
         private readonly string _topicName;
         private readonly string _channelName;
+        private readonly CancellationTokenSource _cancellationTokenSource;
+        private readonly ConsumerFactory _consumerFactory;
         private Action<IMessageContext> _onMessageReceivedCallback = ctx => { };
         private Action<ConnectionErrorContext> _onConnectionErrorCallback = ctx => { };
-        private Timer _workerTimer = new Timer(DefaultHeartbeatInterval.TotalMilliseconds);
+        private Task _workerTask;        
+        private bool _isRunning;
 
-        public Subscriber(string topicName, string channelName, SubscriberOptions options)
+        public Subscriber(string topicName, string channelName, SubscriberOptions options) : this(topicName, channelName, options, null) { }
+
+        public Subscriber(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
         {
             _topicName = topicName;
             _channelName = channelName;
             _options = options;
-            _connectionFactory = new NsqConnectionFactory(options);
+            _cancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
+            _consumerFactory = new ConsumerFactory(options, _cancellationTokenSource.Token);
+            _defaultHeartbeatInterval = TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.GetValueOrDefault(DefaultHeartbeatIntervalInSeconds) * 2);            
+        }
+
+        public bool IsActive
+        {
+            get
+            {
+                bool isWorkerActive = _workerTask != null &&
+                    !_workerTask.IsCompleted;
+
+                return _isRunning && isWorkerActive && !_cancellationTokenSource.IsCancellationRequested;
+            }
         }
 
         public Subscriber OnConnectionError(Action<ConnectionErrorContext> callback)
@@ -44,105 +62,108 @@ namespace ZeroNsq
 
         public void Start()
         {
-            MonitorConnections().Wait();
-            _workerTimer.Elapsed += OnWorkerTimerElapsed;
-            _workerTimer.Start();
-        }
+            if (IsActive) return;
 
-        private void OnWorkerTimerElapsed(object sender, ElapsedEventArgs e)
-        {   
-            lock (_monitorConnectionLock)
+            lock (_startLock)
             {
-                _workerTimer.Stop();
-                MonitorConnections().Wait();
-                _workerTimer.Start();
+                MonitorConnections(true, throwConnectionException: true);
+
+                _workerTask = Task.Factory.StartNew(
+                    s => WorkerLoop(),
+                    TaskCreationOptions.LongRunning,
+                    _cancellationTokenSource.Token);
+
+                _isRunning = true;
             }
         }
 
-        private async Task MonitorConnections()
+        public void Stop()
         {
-            var connections = await LocateNsqdInstances(_topicName, _connectionFactory, _connections);
-            
-            foreach (INsqConnection conn in connections)
+            if (_consumerFactory != null)
             {
-                LaunchConsumer(conn);
+                _consumerFactory.Reset();
+            }
+
+            _isRunning = false;
+
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(2));                
+            }
+
+            if (_workerTask != null)
+            {
+                _workerTask.Wait();
+                _workerTask.Dispose();
+                _workerTask = null;
             }
         }
 
-        private void LaunchConsumer(INsqConnection conn)
+        private void WorkerLoop()
         {
-            if (conn.IsConnected) return;
+            while (IsActive)
+            {
+                bool isMonitored = MonitorConnections(IsActive, throwConnectionException: false);
 
-            if (_onMessageReceivedCallback != null)
-            {
-                //conn.OnMessageReceived(msg => {
-                //    try
-                //    {
-                //        var ctx = new MessageContext(conn, msg, _options);
-                //        _onMessageReceivedCallback();
-                //    }
-                //    catch (Exception ex)
-                //    {
-                //        if (_onConnectionErrorCallback != null)
-                //        {
-                //            _onConnectionErrorCallback(new ConnectionErrorContext(conn, ex));
-                //        }
-                //    }
-                //});
-            }
-
-            try
-            {
-                conn.Connect();
-                conn.SendRequest(new Subscribe(_topicName, _channelName));
-                conn.SendRequest(new Ready(_options.MaxInFlight));
-            }
-            catch (Exception ex)
-            {
-                if (_onConnectionErrorCallback != null)
+                if (!isMonitored)
                 {
-                    _onConnectionErrorCallback(new ConnectionErrorContext(conn, ex));
+                    break;
+                }
+
+                Thread.Sleep(_defaultHeartbeatInterval);
+            }
+        }
+
+        private bool MonitorConnections(bool isRunning, bool throwConnectionException = false)
+        {
+            if (!isRunning) return false;
+            if (_consumerFactory == null) return false;
+
+            IEnumerable<Consumer> consumers = _consumerFactory.GetInstances(_topicName);
+            
+            foreach (Consumer consumer in consumers)
+            {
+                try
+                {
+                    bool isConnectionMonitorNeeded = isRunning && !_cancellationTokenSource.Token.IsCancellationRequested;
+                    if (!isConnectionMonitorNeeded) return false;
+
+                    if (!consumer.IsConnected)
+                    {
+                        consumer.Start(_channelName, _onMessageReceivedCallback, _onConnectionErrorCallback, throwConnectionException);
+                    }
+                }
+                catch (BaseException ex)
+                {
+                    if (_onConnectionErrorCallback != null)
+                    {
+                        _onConnectionErrorCallback(new ConnectionErrorContext(consumer.Connection, ex));
+                    }
+
+                    if (throwConnectionException)
+                    {
+                        throw;
+                    }
                 }
             }
-        }
 
-        private static async Task<IEnumerable<INsqConnection>> LocateNsqdInstances(string topicName, NsqConnectionFactory connectionFactory, ConcurrentDictionary<string, INsqConnection> currentConnections)
-        {
-            IDictionary<string, INsqConnection> newConnections = await connectionFactory.GetConnections(topicName);            
-            
-            // add
-            foreach (string key in newConnections.Keys)
-            {
-               if (!currentConnections.ContainsKey(key))
-                {
-                    currentConnections.TryAdd(key, newConnections[key]);    
-                }
-            }
-
-            // disconnect and remove
-            var obsoleteKeys = currentConnections.Keys
-                .Where(k => !newConnections.Keys.Contains(k));
-
-            foreach (var key in obsoleteKeys)
-            {
-                currentConnections[key].Close();
-
-                INsqConnection conn = null;
-                currentConnections.TryRemove(key, out conn);
-            }
-
-            return currentConnections.Values;
+            return true;
         }
 
         #region IDisposable members
 
         public void Dispose()
         {
-            if (_workerTimer != null)
+            Stop();
+
+            if (_cancellationTokenSource != null)
             {
-                _workerTimer.Stop();
-                _workerTimer.Dispose();
-                _workerTimer = null;
+                _cancellationTokenSource.Dispose();
+            }
+
+            if (_consumerFactory != null)
+            {
+                _consumerFactory.Dispose();
             }
         }
 

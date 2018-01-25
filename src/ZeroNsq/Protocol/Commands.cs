@@ -26,41 +26,41 @@ namespace ZeroNsq.Protocol
             return new Command(data);
         }
 
-        public static byte[] Finish(string messageId)
+        public static Command Finish(byte[] messageId)
         {
             using (var ms = new MemoryStream())
             {
                 ms.WriteBytes(FIN);
-                ms.WriteUtf8(messageId);
+                ms.WriteBytes(messageId);
                 ms.WriteBytes(LF);
 
-                return ms.ToArray();
+                return new Command(ms.ToArray());
             }
         }
 
-        public static byte[] Requeue(string messageId, int timeout)
+        public static Command Requeue(byte[] messageId, int timeout)
         {
             using (var ms = new MemoryStream())
             {
                 ms.WriteBytes(REQ);
-                ms.WriteUtf8(messageId);
+                ms.WriteBytes(messageId);
                 ms.WriteBytes(SPACE);
                 ms.WriteUtf8(timeout.ToString());
                 ms.WriteBytes(LF);
 
-                return ms.ToArray();
+                return new Command(ms.ToArray());
             }
         }
 
-        public static byte[] Touch(string messageId)
+        public static Command Touch(byte[] messageId)
         {
             using (var ms = new MemoryStream())
             {
                 ms.WriteBytes(TOUCH);
-                ms.WriteUtf8(messageId);
+                ms.WriteBytes(messageId);
                 ms.WriteBytes(LF);
 
-                return ms.ToArray();
+                return new Command(ms.ToArray());
             }
         }
     }

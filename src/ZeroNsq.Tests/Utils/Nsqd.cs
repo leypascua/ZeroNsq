@@ -12,6 +12,7 @@ namespace ZeroNsq.Tests.Utils
         public const string Local = "127.0.0.1";
         public const int TcpPort = 4150;
         public const string DefaultTopicName = "ZeroNsq_Utils.DefaultTopic-TEST";
+        public static readonly string DefaultChannelName = DefaultChannelName + ".Channel";
         public static int NextAvailablePort = 8149;
         public readonly static object SyncLock = new object();
 

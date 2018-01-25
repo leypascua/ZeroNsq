@@ -30,4 +30,9 @@ namespace ZeroNsq
     {
         public ProtocolViolationException(string message) : base(message) { }
     }
+
+    public class MessageRequeueException : BaseException
+    {
+        public MessageRequeueException(string message) : base(message) { }
+    }
 }

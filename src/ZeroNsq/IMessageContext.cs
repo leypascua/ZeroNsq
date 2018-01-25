@@ -8,6 +8,8 @@ namespace ZeroNsq
     public interface IMessageContext
     {
         Message Message { get; }
+        string TopicName { get; }
+        string ChannelName { get; }
 
         void Finish();
         void Requeue();
@@ -16,38 +18,46 @@ namespace ZeroNsq
 
     internal class MessageContext : IMessageContext
     {
-        private readonly INsqConnection _connection;
+        private readonly Consumer _consumer;
         private readonly SubscriberOptions _options;
 
-        public MessageContext(INsqConnection conn, Message msg, SubscriberOptions options)
+        public MessageContext(Consumer consumer, Message msg, SubscriberOptions options, string topic, string channel)
         {
-            _connection = conn;
+            _consumer = consumer;
             _options = options;
             Message = msg;
+            TopicName = topic;
+            ChannelName = channel;
         }
 
         public Message Message { get; private set; }
 
+        public string TopicName { get; private set; }
+
+        public string ChannelName { get; private set; }
+
         public void Finish()
         {
-            _connection.SendRequest(Commands.New(Commands.Finish(Message.Id)));
+            _consumer.Connection.SendRequest(Commands.Finish(Message.Id));
         }
 
         public void Requeue()
         {
-            if (_options.MaxRetryAttempts < Message.Attempts)
+            if (Message.Attempts > _options.MaxRetryAttempts + 1)
             {
                 ///TODO: Possibly add a callback to handle this.
-
-                throw new InvalidOperationException("MaxRetryAttempts for the message exceeded.");
+                throw new MessageRequeueException("MaxRetryAttempts for the message was exceeded.");
             }
 
-            _connection.SendRequest(Commands.New(Commands.Requeue(Message.Id, 0)));
+            ///TODO: Get this value from somewhere... 
+            int requeueDeferTimeout = 0;
+
+            _consumer.Connection.SendRequest(Commands.Requeue(Message.Id, requeueDeferTimeout));
         }
 
         public void Touch()
         {
-            _connection.SendRequest(Commands.New(Commands.Touch(Message.Id)));
+            _consumer.Connection.SendRequest(Commands.Touch(Message.Id));
         }
     }
 }

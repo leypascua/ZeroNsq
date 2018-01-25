@@ -56,6 +56,12 @@ namespace ZeroNsq
             });
         }
 
+        public INsqConnection OnMessageReceived(Action<Message> callback)
+        {
+            _rawConnection.OnMessageReceived(callback);
+            return this;
+        }
+
         void INsqConnection.Connect()
         {
             if (IsConnected) return;

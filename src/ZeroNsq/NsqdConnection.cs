@@ -14,12 +14,14 @@ namespace ZeroNsq
         private const int MaxLastResponseFetchCount = 128;
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
-        private ConnectionResource _connectionResource;
-        private bool _isIdentified = false;
-        private bool _disposedValue = false; // To detect redundant calls         
+        private ConnectionResource _connectionResource;        
         private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();
+        private ConcurrentQueue<Message> _receivedMessagesQueue = new ConcurrentQueue<Message>();
         private Task _workerTask;
         private CancellationTokenSource _workerCancellationTokenSource;
+        private Action<Message> _onMessageReceivedCallback = msg => { };
+        private bool _isIdentified = false;
+        private bool _disposedValue = false; // To detect redundant calls         
 
         public NsqdConnection(string host, int port, ConnectionOptions options = null) 
             : this(new DnsEndPoint(host, port), options) { }
@@ -104,6 +106,16 @@ namespace ZeroNsq
 
             // did not receive a frame in a timely manner.
             return null;
+        }
+
+        public INsqConnection OnMessageReceived(Action<Message> callback)
+        {
+            if (callback != null)
+            {
+                _onMessageReceivedCallback = callback;
+            }
+
+            return this;
         }
 
         public void Close()
@@ -242,16 +254,44 @@ namespace ZeroNsq
             switch (frame.Type)
             {
                 case FrameType.Response:
+                case FrameType.Error:
                     if (frame.Data.SequenceEqual(Response.Heartbeat))
                     {
                         SendRequest(Commands.NOP);
                         return;
-                    }
+                    }                
 
+                    _receivedFramesQueue.Enqueue(frame);
+                    break;
+
+                case FrameType.Message:
+                    EnqueueMessage(frame);
                     break;
             }
+        }
 
-            _receivedFramesQueue.Enqueue(frame);
+        private void EnqueueMessage(Frame frame)
+        {
+            if (frame.Type != FrameType.Message)
+            {
+                throw new InvalidOperationException("Unable to get message from frame type " + frame.Type.ToString());
+            }
+
+            _receivedMessagesQueue.Enqueue(frame.ToMessage());
+
+            if (_onMessageReceivedCallback != null)
+            {
+                while (_receivedMessagesQueue.Count > 0)
+                {
+                    Message msg = null;
+                    bool isMessageAvailable = _receivedMessagesQueue.TryDequeue(out msg);
+
+                    if (isMessageAvailable)
+                    {
+                        _onMessageReceivedCallback(msg);
+                    }
+                }
+            }
         }
 
         private void PerformHandshake(ConnectionOptions options)

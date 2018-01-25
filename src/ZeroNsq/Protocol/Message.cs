@@ -19,7 +19,7 @@ namespace ZeroNsq
         public Message(string data)
         {
             Timestamp = DateTime.UtcNow.ToUnixTimestamp();
-            Id = data.Md5().Substring(0, 16);
+            Id = Encoding.UTF8.GetBytes(data.Md5().Substring(0, 16));
             Body = Encoding.UTF8.GetBytes(data);
         }
 
@@ -38,7 +38,15 @@ namespace ZeroNsq
 
         public short Attempts { get; set; }
 
-        public string Id { get; set; }
+        public byte[] Id { get; set; }
+
+        public string IdString
+        {
+            get
+            {
+                return Encoding.ASCII.GetString(Id);
+            }
+        }
 
         public byte[] Body { get; set; }
 
@@ -82,7 +90,7 @@ namespace ZeroNsq
         {
             stream.WriteInt64(Timestamp);
             stream.WriteInt16(Attempts);
-            stream.WriteASCII(Id);
+            stream.WriteBytes(Id);
             stream.WriteBytes(Body);
             stream.Flush();
         }
@@ -96,22 +104,12 @@ namespace ZeroNsq
             return buffer;
         }
 
-        private static string ReadMessageId(Stream ms)
+        private static byte[] ReadMessageId(Stream ms)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(MessageIdHeaderLength);
-            string result = string.Empty;
+            byte[] buffer = new byte[MessageIdHeaderLength];
+            ms.Read(buffer, 0, MessageIdHeaderLength);
 
-            try
-            {
-                ms.Read(buffer, 0, MessageIdHeaderLength);
-                result = Encoding.UTF8.GetString(buffer);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-
-            return result;
+            return buffer;
         }
 
         private static short ReadAttempts(Stream ms)
