@@ -11,6 +11,7 @@ namespace ZeroNsq
         const int DefaultMaxClientReconnectionAttempts = 3;
         const int DefaultInitialBackoffTimeInSeconds = 8;
         const int DefaultHeartbeatIntervalInSeconds = 30;
+        const int DefaultMessageTimeoutInSeconds = 120;
 
         public static readonly ConnectionOptions Default = SetDefaults(null);
 
@@ -22,7 +23,12 @@ namespace ZeroNsq
 
         public string Hostname { get; set; }
         public string ClientId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the in-flight message timeout period in seconds.
+        /// </summary>
         public int? MessageTimeout { get; set; }
+        
         public int? HeartbeatIntervalInSeconds { get; set; }
 
         public int MaxClientReconnectionAttempts { get; set; }
@@ -38,6 +44,11 @@ namespace ZeroNsq
             if (!opt.HeartbeatIntervalInSeconds.HasValue)
             {
                 opt.HeartbeatIntervalInSeconds = DefaultHeartbeatIntervalInSeconds;
+            }
+
+            if (!opt.MessageTimeout.HasValue)
+            {
+                opt.MessageTimeout = DefaultMessageTimeoutInSeconds;
             }
 
             if (opt.MaxClientReconnectionAttempts == 0) opt.MaxClientReconnectionAttempts = DefaultMaxClientReconnectionAttempts;

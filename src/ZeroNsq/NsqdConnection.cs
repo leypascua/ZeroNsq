@@ -11,13 +11,13 @@ namespace ZeroNsq
     public class NsqdConnection : INsqConnection, IDisposable
     {
         private const int DefaultThreadSleepTime = 100;        
-        private const int MaxLastResponseFetchCount = 128;
+        private const int MaxLastResponseFetchCount = 128;        
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
         private ConnectionResource _connectionResource;        
         private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();
         private ConcurrentQueue<Message> _receivedMessagesQueue = new ConcurrentQueue<Message>();
-        private Task _workerTask;
+        private Task _workerTask;        
         private CancellationTokenSource _workerCancellationTokenSource;
         private Action<Message> _onMessageReceivedCallback = msg => { };
         private bool _isIdentified = false;
@@ -303,7 +303,7 @@ namespace ZeroNsq
             {
                 hostname = options.Hostname,
                 client_id = options.ClientId,
-                msg_timeout = options.MessageTimeout,
+                msg_timeout = (int)TimeSpan.FromSeconds(options.MessageTimeout.Value).TotalMilliseconds,
                 heartbeat_interval = (int)TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.Value).TotalMilliseconds
             }, isForced: true);
 

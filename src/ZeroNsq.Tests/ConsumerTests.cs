@@ -11,6 +11,54 @@ namespace ZeroNsq.Tests
     public class ConsumerTests
     {
         [Fact]
+        public void MessageTimeoutTest()
+        {
+            string topicName = "MessageTimeout." + Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var resetEvent = new ManualResetEventSlim();
+            var opt = new SubscriberOptions
+            {
+                MessageTimeout = 5
+            };
+
+            IMessageContext messageContext = null;
+            string expectedMessageId = null;
+
+            Action<IMessageContext> onMessageReceived = msg => {
+
+                if (string.IsNullOrEmpty(expectedMessageId))
+                {
+                    expectedMessageId = msg.Message.IdString;
+                }
+
+                // simulate a long process.
+                Thread.Sleep(TimeSpan.FromSeconds(opt.MessageTimeout.Value + 2));                
+                msg.Finish();
+
+                if (msg.Message.Attempts > 1)
+                {
+                    messageContext = msg;
+                    resetEvent.Set();
+                    msg.Finish();
+                }
+            };
+
+            using (var nsqd = Nsqd.StartLocal())
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            {
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+                publisher.Publish(topicName, "foo");
+
+                resetEvent.Wait();
+            }
+
+            Assert.NotNull(messageContext);
+            Assert.Equal(expectedMessageId, messageContext.Message.IdString);
+        }
+
+        [Fact]
         public void SubscribeAndFinishTest()
         {
             string topicName = "SubscribeAndFinish." + Guid.NewGuid().ToString();
