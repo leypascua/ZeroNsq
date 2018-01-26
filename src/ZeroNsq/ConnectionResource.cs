@@ -126,11 +126,12 @@ namespace ZeroNsq
         {
             if (IsInitialized)
             {
+                _frameReader.Dispose();
                 _frameReader = null;
 
                 _networkStream.Close();
                 _networkStream.Dispose();
-                _networkStream = null;
+                _networkStream = null;                
 
                 _tcpClient.Close();
                 _tcpClient.Dispose();

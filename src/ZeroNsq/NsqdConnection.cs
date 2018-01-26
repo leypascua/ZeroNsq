@@ -59,10 +59,10 @@ namespace ZeroNsq
             _workerCancellationTokenSource = new CancellationTokenSource();
 
             _workerTask = Task.Factory.StartNew(
-                s => WorkerLoop(), 
+                WorkerLoop, 
+                _workerCancellationTokenSource.Token, 
                 TaskCreationOptions.LongRunning, 
-                _workerCancellationTokenSource.Token
-            );
+                TaskScheduler.Current);
         }
 
         public void SendRequest(IRequest request)
@@ -135,6 +135,7 @@ namespace ZeroNsq
 
                 try
                 {
+                    _workerTask.Wait(TimeSpan.FromSeconds(3));                    
                     _workerTask.Dispose();
                 }
                 catch { }
@@ -358,9 +359,7 @@ namespace ZeroNsq
             {
                 if (instance._workerTask != null && instance._workerTask.IsFaulted)
                 {
-                    var flatException = instance._workerTask.Exception.Flatten();
-
-                    var knownErrors = flatException.InnerExceptions
+                    var knownErrors = instance._workerTask.Exception.InnerExceptions
                         .Where(error => error is BaseException)
                         .Select(x => x.Message)
                         .ToArray();
@@ -371,7 +370,7 @@ namespace ZeroNsq
                         throw new ConnectionException("One or more errors occurred. " + message);
                     }
 
-                    throw flatException;
+                    throw instance._workerTask.Exception.Flatten();
                 }
 
                 throw new ConnectionException("Unable to perform request with a closed connection.");

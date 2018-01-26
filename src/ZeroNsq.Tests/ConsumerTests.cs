@@ -11,6 +11,44 @@ namespace ZeroNsq.Tests
     public class ConsumerTests
     {
         [Fact]
+        public void TouchMessageTest()
+        {
+            string topicName = "TouchMessage." + Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var resetEvent = new ManualResetEventSlim();
+            var opt = new SubscriberOptions
+            {
+                MessageTimeout = 3
+            };
+            int incomingMessageCount = 0;
+
+            Action<IMessageContext> onMessageReceived = ctx => 
+            {    
+                Thread.Sleep(TimeSpan.FromSeconds(opt.MessageTimeout.Value - 1));
+                ctx.Touch();
+                Thread.Sleep(TimeSpan.FromSeconds(opt.MessageTimeout.Value));
+                ctx.Finish();                
+
+                incomingMessageCount += 1;
+                resetEvent.Set();
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8110))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            {
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+
+                publisher.Publish(topicName, "Hello world");
+
+                resetEvent.Wait(TimeSpan.FromSeconds(opt.MessageTimeout.Value * 2));
+            }
+
+            Assert.Equal(1, incomingMessageCount);
+        }
+
+        [Fact]
         public void MessageTimeoutTest()
         {
             string topicName = "MessageTimeout." + Guid.NewGuid().ToString();
