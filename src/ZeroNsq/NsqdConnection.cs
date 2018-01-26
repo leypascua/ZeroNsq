@@ -37,9 +37,7 @@ namespace ZeroNsq
             get
             {
                 bool workerIsRunning =
-                    _workerTask != null &&                    
-                    !_workerTask.IsFaulted && 
-                    !_workerTask.IsCompleted; 
+                    _workerTask != null && !_workerTask.IsCompleted; 
 
                 return _connectionResource != null &&
                        _connectionResource.IsInitialized &&
@@ -234,13 +232,17 @@ namespace ZeroNsq
                 {
                     frame = _connectionResource.ReadFrame();
                 }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
                 catch (ConnectionException)
                 {
                     Close();                    
                     throw;
                 }
 
-                if (!IsConnected) return;
+                if (!IsConnected) break;
                 if (frame == null) break;
 
                 OnFrameReceived(frame);

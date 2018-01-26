@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using Xunit;
@@ -10,41 +11,85 @@ namespace ZeroNsq.Tests
     public class ConsumerTests
     {
         [Fact]
-        public void FinishTest()
+        public void SubscribeAndFinishTest()
         {
-            string expectedMessage = "Hello world";
-            string receivedMessage = null;
+            string topicName = "SubscribeAndFinish." + Guid.NewGuid().ToString();
+            string expectedMessage = Guid.NewGuid().ToString();
             var cancellationSource = new CancellationTokenSource();
             var opt = new SubscriberOptions();
+            IMessageContext messageContext = null;
+            var resetEvent = new ManualResetEventSlim();
 
             Action<IMessageContext> onMessageReceived = msg => {
-                receivedMessage = msg.Message.ToUtf8String();
+                messageContext = msg;
+                resetEvent.Set();
                 msg.Finish();
             };
 
             using (var nsqd = Nsqd.StartLocal())
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
-            using (var consumer = new Consumer(Nsqd.DefaultTopicName, conn, opt, cancellationSource.Token))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
             using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
             {
-                consumer.Start(Nsqd.DefaultTopicName, onMessageReceived, OnConnectionError);
-                publisher.Publish(Nsqd.DefaultTopicName, expectedMessage);
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+                publisher.Publish(topicName, expectedMessage);
 
-                for (int idx = 0; idx <= 3; idx++)
-                {
-                    if (receivedMessage == null)
-                    {
-                        Thread.Sleep(TimeSpan.FromSeconds(2));
-                    }
-                }
+                resetEvent.Wait();
             }
 
-            Assert.Equal(expectedMessage, receivedMessage);
+            Assert.NotNull(messageContext);
+            Assert.Equal(expectedMessage, messageContext.Message.ToUtf8String());
         }
 
-        private void OnConnectionError(ConnectionErrorContext obj)
+        [Fact]
+        public void RequeueAttemptsExceededTest()
         {
-            
+            string topicName = "RequeueAttemptsExceeded." + Guid.NewGuid().ToString();
+            string expectedMessage = Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var opt = new SubscriberOptions { MaxRetryAttempts = 5, MaxInFlight = 1 };
+            var resetEvent = new ManualResetEventSlim();
+            IMessageContext messageContext = null;
+            string expectedMessageId = null;
+            int actualRequeueCount = 0;
+
+            Action<IMessageContext> onMessageReceived = msg => {
+                try
+                {
+                    if (string.IsNullOrEmpty(expectedMessageId))
+                    {
+                        expectedMessageId = msg.Message.IdString;
+                    }
+
+                    msg.Requeue();
+                    actualRequeueCount += 1;
+                }
+                catch (MessageRequeueException)
+                {
+                    messageContext = msg;
+                    resetEvent.Set();
+                    msg.Finish();
+                }
+            };
+
+            using (var nsqd = Nsqd.StartLocal())
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            {
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+                publisher.Publish(topicName, expectedMessage);
+
+                resetEvent.Wait();
+            }
+
+            Assert.Equal(expectedMessageId, messageContext.Message.IdString);
+            Assert.Equal(opt.MaxRetryAttempts, actualRequeueCount);
+        }
+
+        private void OnConnectionError(ConnectionErrorContext ctx)
+        {
+            Trace.WriteLine(ctx.Error.ToString());
         }
     }
 }

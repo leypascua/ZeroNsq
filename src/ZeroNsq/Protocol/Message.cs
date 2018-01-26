@@ -114,36 +114,32 @@ namespace ZeroNsq
 
         private static short ReadAttempts(Stream ms)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(AttemptsHeaderLength);
-            short result = 0;
+            byte[] buffer = new byte[AttemptsHeaderLength];
+            
+            ms.Read(buffer, 0, AttemptsHeaderLength);
 
-            try
+            if (BitConverter.IsLittleEndian)
             {
-                ms.Read(buffer, 0, AttemptsHeaderLength);
-                result = BitConverter.ToInt16(buffer, 0);
+                Array.Reverse(buffer);
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-            }
+
+            short result = BitConverter.ToInt16(buffer, 0);
 
             return result;
         }
 
         private static long ReadTimestamp(Stream ms)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(TimestampHeaderLength);
-            long result = 0;
+            byte[] buffer = new byte[TimestampHeaderLength];
+            
+            ms.Read(buffer, 0, TimestampHeaderLength);
 
-            try
+            if (BitConverter.IsLittleEndian)
             {
-                ms.Read(buffer, 0, TimestampHeaderLength);
-                result = BitConverter.ToInt64(buffer, 0);
+                Array.Reverse(buffer);
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-            }
+
+            long result = BitConverter.ToInt64(buffer, 0);
 
             return result;
         }

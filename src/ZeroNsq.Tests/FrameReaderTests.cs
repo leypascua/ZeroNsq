@@ -21,6 +21,10 @@ namespace ZeroNsq.Tests
             Assert.Equal(expectedFrame.Type, result.Type);
             Assert.Equal(expectedFrame.Data.Length, result.Data.Length);
             Assert.True(expectedFrame.Data.SequenceEqual(result.Data));
+
+            Message received = result.ToMessage();
+            Assert.True(msg.Body.SequenceEqual(received.Body));
+            Assert.True(msg.Id.SequenceEqual(received.Id));
         }
 
         [Fact]

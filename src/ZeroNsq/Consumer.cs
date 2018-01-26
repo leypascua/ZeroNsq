@@ -162,7 +162,7 @@ namespace ZeroNsq
                     Thread.Sleep(TimeSpan.FromSeconds(1));
                 }
 
-                var completedTasks = _runningTasks.Where(t => t.IsCompleted);
+                var completedTasks = _runningTasks.Where(t => t.IsCompleted).ToList();
                 foreach (var ct in completedTasks)
                 {
                     ct.Dispose();

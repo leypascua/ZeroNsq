@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using ZeroNsq.Protocol;
 
@@ -42,17 +43,23 @@ namespace ZeroNsq
         }
 
         public void Requeue()
-        {
-            if (Message.Attempts > _options.MaxRetryAttempts + 1)
+        {   
+            int currentAttempts = (int)Message.Attempts;
+
+            Trace.WriteLine(string.Format("Current attempts={0}; Max={1}", currentAttempts, _options.MaxRetryAttempts));
+
+            if (currentAttempts <= _options.MaxRetryAttempts)
+            {
+                ///TODO: Get this value from somewhere... 
+                int requeueDeferTimeout = 0;
+
+                _consumer.Connection.SendRequest(Commands.Requeue(Message.Id, requeueDeferTimeout));
+            }
+            else
             {
                 ///TODO: Possibly add a callback to handle this.
                 throw new MessageRequeueException("MaxRetryAttempts for the message was exceeded.");
             }
-
-            ///TODO: Get this value from somewhere... 
-            int requeueDeferTimeout = 0;
-
-            _consumer.Connection.SendRequest(Commands.Requeue(Message.Id, requeueDeferTimeout));
         }
 
         public void Touch()
