@@ -43,7 +43,7 @@ namespace ZeroNsq.Tests
                 }
             };
 
-            using (var nsqd = Nsqd.StartLocal())
+            using (var nsqd = Nsqd.StartLocal(8111))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
             using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
@@ -74,7 +74,7 @@ namespace ZeroNsq.Tests
                 msg.Finish();
             };
 
-            using (var nsqd = Nsqd.StartLocal())
+            using (var nsqd = Nsqd.StartLocal(8112))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
             using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
@@ -120,7 +120,7 @@ namespace ZeroNsq.Tests
                 }
             };
 
-            using (var nsqd = Nsqd.StartLocal())
+            using (var nsqd = Nsqd.StartLocal(8113))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
             using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
@@ -133,6 +133,43 @@ namespace ZeroNsq.Tests
 
             Assert.Equal(expectedMessageId, messageContext.Message.IdString);
             Assert.Equal(opt.MaxRetryAttempts, actualRequeueCount);
+        }
+
+        [Fact]
+        public void InvokeErrorCallbackTest()
+        {
+            string expectedErrorMessage = "foo: " + Guid.NewGuid().ToString();
+            string topicName = "InvokeErrorCallback." + Guid.NewGuid().ToString();
+            string expectedMessage = Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var opt = new SubscriberOptions();
+            ConnectionErrorContext errorContext = null;
+            ManualResetEventSlim resetEvent = new ManualResetEventSlim();
+
+            Action<IMessageContext> onMessageReceived = ctx =>
+            {
+                throw new InvalidOperationException(ctx.Message.ToUtf8String());
+            };
+
+            Action<ConnectionErrorContext> onConnectionError = ctx =>
+            {
+                errorContext = ctx;
+                resetEvent.Set();
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8114))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            {
+                consumer.Start(topicName, onMessageReceived, onConnectionError);
+                publisher.Publish(topicName, expectedErrorMessage);
+
+                resetEvent.Wait(TimeSpan.FromSeconds(5));
+            }
+
+            Assert.NotNull(errorContext);
+            Assert.Equal(expectedErrorMessage, errorContext.Error.Message);
         }
 
         private void OnConnectionError(ConnectionErrorContext ctx)
