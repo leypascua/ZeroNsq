@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy $(SolutionDir)..\lib\nsq-1.0.0-compat\nsqd.exe $(OutDir)" />
+    <Exec Command="copy $(SolutionDir)..\lib\nsq-1.0.0-compat\nsqd.exe $(OutDir)&#xD;&#xA;copy $(SolutionDir)..\lib\nsq-1.0.0-compat\nsqlookupd.exe $(OutDir)" />
   </Target>
 
 </Project>

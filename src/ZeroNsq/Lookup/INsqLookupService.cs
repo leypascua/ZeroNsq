@@ -19,7 +19,17 @@ namespace ZeroNsq.Lookup
         public async Task<IEnumerable<ProducerEndpointData>> GetProducersAsync(Uri lookupdHostUri, string topicName)
         {
             ///TODO: Implement this. Download list from http://Lookupd.nsq.io:4160/lookup?topic={topicName}            
+#if DEBUG
+            return await GetProducersFromApiAsync(lookupdHostUri, topicName);
+#endif
 
+#if RELEASE
+            return await Task.Run(() => new ProducerEndpointData[0]);      
+#endif
+        }
+
+        private async Task<IEnumerable<ProducerEndpointData>> GetProducersFromApiAsync(Uri lookupdHostUri, string topicName)
+        {
             var uriBuilder = new UriBuilder(lookupdHostUri);
             uriBuilder.Path = "lookup";
             uriBuilder.Query = "topic=" + topicName;
