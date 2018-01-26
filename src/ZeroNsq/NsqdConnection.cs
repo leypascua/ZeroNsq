@@ -11,14 +11,15 @@ namespace ZeroNsq
     public class NsqdConnection : INsqConnection, IDisposable
     {
         private const int DefaultThreadSleepTime = 100;        
-        private const int MaxLastResponseFetchCount = 128;        
+        private const int MaxLastResponseFetchCount = 32;        
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
+        private readonly ManualResetEventSlim _frameReceivedResetEvent = new ManualResetEventSlim();
         private ConnectionResource _connectionResource;        
         private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();
         private ConcurrentQueue<Message> _receivedMessagesQueue = new ConcurrentQueue<Message>();
         private Task _workerTask;        
-        private CancellationTokenSource _workerCancellationTokenSource;
+        private CancellationTokenSource _workerCancellationTokenSource;        
         private Action<Message> _onMessageReceivedCallback = msg => { };
         private bool _isIdentified = false;
         private bool _disposedValue = false; // To detect redundant calls         
@@ -76,6 +77,11 @@ namespace ZeroNsq
             do
             {
                 Frame nextFrame = null;
+
+                if (_receivedFramesQueue.IsEmpty)
+                {
+                    _frameReceivedResetEvent.Wait(TimeSpan.FromSeconds(10));
+                }
 
                 if (_receivedFramesQueue.Count > 0)
                 {
@@ -264,6 +270,7 @@ namespace ZeroNsq
                     }                
 
                     _receivedFramesQueue.Enqueue(frame);
+                    _frameReceivedResetEvent.Set();
                     break;
 
                 case FrameType.Message:
