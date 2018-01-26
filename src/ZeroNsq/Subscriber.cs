@@ -69,9 +69,10 @@ namespace ZeroNsq
                 MonitorConnections(true, throwConnectionException: true);
 
                 _workerTask = Task.Factory.StartNew(
-                    s => WorkerLoop(),
+                    WorkerLoop,
+                    _cancellationTokenSource.Token,
                     TaskCreationOptions.LongRunning,
-                    _cancellationTokenSource.Token);
+                    TaskScheduler.Current);
 
                 _isRunning = true;
             }
@@ -88,13 +89,21 @@ namespace ZeroNsq
 
             if (_cancellationTokenSource != null)
             {
-                _cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(2));                
+                _cancellationTokenSource.Cancel();
             }
 
             if (_workerTask != null)
             {
-                _workerTask.Wait();
-                _workerTask.Dispose();
+                try
+                {
+                    if (!_workerTask.IsCompleted)
+                    {
+                        _workerTask.Wait();
+                        _workerTask.Dispose();
+                    }
+                }
+                catch (BaseException) { }
+                
                 _workerTask = null;
             }
         }

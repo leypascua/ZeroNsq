@@ -2,35 +2,32 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ZeroNsq.SimpleExample
+namespace ZeroNsq.ConsumerExample
 {
     class Program
     {
         const string Localhost = "127.0.0.1";
+        static ManualResetEventSlim resetEvent = new ManualResetEventSlim();
 
         static void Main(string[] args)
         {
             string topicName = "ZeroNsq.SimpleExample.Program";
             string channelName = topicName + ".Channel";
-            string connectionString = "nsqd=tcp://127.0.0.1:4150;";
+            string connectionString = string.Format("nsqd=tcp://{0}:4150;", Localhost);
 
             using (var subscriber = new Subscriber(topicName, channelName, SubscriberOptions.Parse(connectionString)))
-            using (var publisher = new Publisher(Localhost, 4150))
             {
                 subscriber
                     .OnMessageReceived(HandleMessage)
                     .OnConnectionError(errorContext => Console.WriteLine("Error: " + errorContext.Error.ToString()))
                     .Start();
 
-                Console.WriteLine("Type a message then hit [enter] to publish.");
                 Console.WriteLine("Press [ctrl + c] to terminate.");
 
-                while (true)
-                {
-                    Console.Write("ping>");
-                    string message = Console.ReadLine();
-                    publisher.Publish(topicName, message);
-                }
+                resetEvent.Wait();
+
+                Console.WriteLine("Stopping the subscriber");
+                subscriber.Stop();
             }
         }
 
@@ -41,8 +38,18 @@ namespace ZeroNsq.SimpleExample
             // simulate an error
             if (incomingMessage == "err")
             {
-                context.Requeue();
-                return;
+                try
+                {
+                    context.Requeue();
+                    Console.WriteLine("Retry attempt for {0}: {1}", context.Message.IdString, context.Message.Attempts);
+                    return;
+                }
+                catch (MessageRequeueException)
+                {
+                    context.Finish();
+                    Console.WriteLine("Exhausted retry attempts for msg {0}", context.Message.IdString);
+                    return;
+                }
             }
 
             // simulate a long-running message handler
@@ -55,12 +62,21 @@ namespace ZeroNsq.SimpleExample
                     Thread.Sleep(TimeSpan.FromSeconds(10));
                     context.Touch();
                 }
+
+                context.Finish();
             }
 
-            // simulate a successful message.
+            // simulate a successful message.            
             Console.Write("pong>");
             Console.WriteLine(incomingMessage);
             context.Finish();
+
+            if (incomingMessage.StartsWith("shutdown"))
+            {
+                Console.WriteLine();
+                Console.WriteLine("Shutdown message received. Killing the process...");
+                resetEvent.Set();
+            }
         }
     }
 }

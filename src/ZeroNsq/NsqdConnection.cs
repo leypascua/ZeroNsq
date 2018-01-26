@@ -23,6 +23,7 @@ namespace ZeroNsq
         private Action<Message> _onMessageReceivedCallback = msg => { };
         private bool _isIdentified = false;
         private bool _disposedValue = false; // To detect redundant calls         
+        private BaseException _workerLoopException;
 
         public NsqdConnection(string host, int port, ConnectionOptions options = null) 
             : this(new DnsEndPoint(host, port), options) { }
@@ -243,10 +244,12 @@ namespace ZeroNsq
                 {
                     break;
                 }
-                catch (ConnectionException)
+                catch (ConnectionException ex)
                 {
-                    Close();                    
-                    throw;
+                    Close();
+                    //throw;
+                    _workerLoopException = ex;
+                    break;
                 }
 
                 if (!IsConnected) break;
@@ -371,6 +374,11 @@ namespace ZeroNsq
                     }
 
                     throw instance._workerTask.Exception.Flatten();
+                }
+
+                if (instance._workerLoopException != null)
+                {
+                    throw instance._workerLoopException;
                 }
 
                 throw new ConnectionException("Unable to perform request with a closed connection.");
