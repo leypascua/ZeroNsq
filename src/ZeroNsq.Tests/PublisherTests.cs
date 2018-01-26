@@ -29,7 +29,7 @@ namespace ZeroNsq.Tests
         {
             var options = ConnectionOptions.Default;
 
-            using (var nsqd = Nsqd.StartLocal(9112))
+            using (var nsqd = Nsqd.StartLocal())
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
             using (var pub = new Publisher(conn, options))
             {
@@ -42,7 +42,7 @@ namespace ZeroNsq.Tests
         {
             var options = ConnectionOptions.Default;
 
-            using (var nsqd = Nsqd.StartLocal(9113))
+            using (var nsqd = Nsqd.StartLocal())
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
             using (var pub = new Publisher(conn, options))
             {
@@ -56,7 +56,7 @@ namespace ZeroNsq.Tests
         {
             var options = ConnectionOptions.Default;
 
-            using (var nsqd = Nsqd.StartLocal(9114))
+            using (var nsqd = Nsqd.StartLocal())
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
             using (var pub = new Publisher(conn, options))
             {
@@ -68,9 +68,9 @@ namespace ZeroNsq.Tests
         [Fact]
         public void ReconnectionAttemptTest()
         {
-            var options = new ConnectionOptions { MaxClientReconnectionAttempts = 3, InitialBackoffTimeInSeconds = 2 };
+            var options = new ConnectionOptions { MaxClientReconnectionAttempts = 3, InitialBackoffTimeInSeconds = 1 };
 
-            using (var nsqd = Nsqd.StartLocal(9115))
+            using (var nsqd = Nsqd.StartLocal())
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
             using (var pub = new Publisher(conn, options))
             {

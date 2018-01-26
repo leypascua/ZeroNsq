@@ -67,7 +67,6 @@ namespace ZeroNsq
             if (IsConnected) return;
 
             int backoffTime = _options.InitialBackoffTimeInSeconds * ReconnectionAttempts;
-
             Thread.Sleep(TimeSpan.FromSeconds(backoffTime));
 
             _rawConnection.Connect();
@@ -100,17 +99,15 @@ namespace ZeroNsq
                     throw;
                 }
 
-                AttemptRetry(ex);
-                Execute(callback);
+                AttemptRetry(ex, callback);
             }
             catch (ConnectionException ex)
             {
-                AttemptRetry(ex);
-                Execute(callback);
+                AttemptRetry(ex, callback);
             }
         }
 
-        private void AttemptRetry(Exception error)
+        private void AttemptRetry(Exception error, Action<INsqConnection> callback)
         {
             if (ReconnectionAttempts > _options.MaxClientReconnectionAttempts)
             {
@@ -118,6 +115,7 @@ namespace ZeroNsq
             }
 
             ReconnectionAttempts += 1;
+            Execute(callback);
         }
 
         #region IDisposable members
