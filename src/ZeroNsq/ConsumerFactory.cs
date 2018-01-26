@@ -5,6 +5,7 @@ using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
+using ZeroNsq.Lookup;
 
 namespace ZeroNsq
 {
@@ -12,13 +13,15 @@ namespace ZeroNsq
     {   
         private readonly SubscriberOptions _options;
         private readonly CancellationToken _cancellationToken;
+        private readonly INsqLookupService _lookupd;
         private readonly object syncLock = new object();
         private Dictionary<string, Consumer> _activeConsumers = new Dictionary<string, Consumer>();
 
-        public ConsumerFactory(SubscriberOptions options, CancellationToken cancellationToken)
+        public ConsumerFactory(SubscriberOptions options, CancellationToken cancellationToken, INsqLookupService lookupd = null)
         {
             _options = options;
             _cancellationToken = cancellationToken;
+            _lookupd = lookupd ?? new NsqLookupDaemonService();
         }
 
         public IEnumerable<Consumer> GetInstances(string topicName)
@@ -55,7 +58,8 @@ namespace ZeroNsq
 
                 // disconnect and remove
                 var obsoleteKeys = _activeConsumers.Keys
-                    .Where(k => !locatedConnections.Keys.Contains(k));
+                    .Where(k => !locatedConnections.Keys.Contains(k))
+                    .ToList();
 
                 foreach (var key in obsoleteKeys)
                 {
@@ -106,8 +110,30 @@ namespace ZeroNsq
 
         private async Task<IDictionary<string, INsqConnection>> GetFromLookupd(string topicName)
         {
-            ///TODO: Implement this. Download list from http://Lookupd.nsq.io:4160/lookup?topic={topicName}
-            return await Task.Factory.StartNew(() => { return new Dictionary<string, INsqConnection>(); });
+            var results = new Dictionary<string, INsqConnection>();
+            if (_options.Lookupd == null || !_options.Lookupd.Any()) return results;
+
+            if (_lookupd == null)
+            {   
+                return await Task.Run(() => { return results; });
+            }
+
+            foreach (Uri endpointUri in _options.Lookupd)
+            {
+                IEnumerable<ProducerEndpointData> producers = await _lookupd.GetProducersAsync(endpointUri, topicName);
+
+                foreach (var producer in producers)
+                {
+                    string key = NsqConnectionProxy.GenerateId(producer.hostname, producer.tcp_port);
+                    if (!results.ContainsKey(key))
+                    {
+                        var conn = new NsqConnectionProxy(producer.hostname, producer.tcp_port, _options);
+                        results.Add(key, conn);
+                    }
+                }
+            }
+
+            return results;
         }
 
         public void Dispose()

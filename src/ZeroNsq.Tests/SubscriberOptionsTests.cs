@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using Xunit;
+using System.Net;
 
 namespace ZeroNsq.Tests
 {
@@ -23,6 +24,16 @@ namespace ZeroNsq.Tests
         {
             var options = SubscriberOptions.Parse("nsqd=127.0.0.1:4150;");
             Assert.Equal(ConnectionOptions.DefaultTcpPort, options.Nsqd.First().Port);
+        }
+
+        [Fact]
+        public void LookupdTest()
+        {
+            string connStr = string.Format("lookupd=http://127.0.0.1:4160;lookupd=http://{0}:4160;", Dns.GetHostName());
+            var options = SubscriberOptions.Parse(connStr);
+
+            Assert.NotNull(options.Lookupd);
+            Assert.Equal(2, options.Lookupd.Length);
         }
     }
 }

@@ -11,6 +11,7 @@ namespace ZeroNsq
     public class SubscriberOptions : ConnectionOptions
     {
         private const string NsqdKey = "Nsqd";
+        private const string LookupdKey = "Lookupd";
         private const string DefaultMaxInFlight = "1";
         private const string MaxInFlightKey = "MaxInFlight";
         private const string DefaultMaxRetryAttempts = "3";
@@ -18,7 +19,7 @@ namespace ZeroNsq
         private const string CONFIG_REGEX = @"=([-A-Za-z0-9_.:/]+)";
 
         public DnsEndPoint[] Nsqd { get; set; }
-        public string[] Lookupd { get; set; }
+        public Uri[] Lookupd { get; set; }
         public int MaxInFlight { get; set; }
         public int MaxRetryAttempts { get; set; }
 
@@ -28,10 +29,27 @@ namespace ZeroNsq
             {
                 MaxInFlight = int.Parse(GetMatch(MaxInFlightKey, input, DefaultMaxInFlight)),
                 MaxRetryAttempts = int.Parse(GetMatch(MaxRetryAttemptsKey, input, DefaultMaxRetryAttempts)),
-                Nsqd = CreateEndpointsFrom(GetMatches(NsqdKey, input), "nsqd=").ToArray()
+                Nsqd = CreateEndpointsFrom(GetMatches(NsqdKey, input), "nsqd=").ToArray(),
+                Lookupd = CreateUriFrom(GetMatches(LookupdKey, input), "lookupd=").ToArray(),
             };
 
             return result;
+        }
+
+        private static IEnumerable<Uri> CreateUriFrom(IEnumerable<string> items, string prefix)
+        {
+            foreach (string item in items)
+            {
+                string input = item
+                    .Replace(prefix, string.Empty);
+
+                if (!input.StartsWith("http"))
+                {
+                    input = "http://" + input;
+                }
+
+                yield return new Uri(input);
+            }
         }
 
         private static IEnumerable<DnsEndPoint> CreateEndpointsFrom(IEnumerable<string> items, string prefix)
