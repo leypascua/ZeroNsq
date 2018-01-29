@@ -12,6 +12,52 @@ namespace ZeroNsq.Tests
     {   
         static readonly string Message = "Hello World";
 
+        [Fact]
+        public void CreateTcpInstanceByConnectionStringTest()
+        {
+            string connectionString = "nsqd=tcp://127.0.0.1:4150;";
+            var publisher = Publisher.CreateInstance(connectionString);
+
+            Assert.True(publisher is TcpPublisher);
+        }
+
+        [Fact]
+        public void CreateHttpInstanceByConnectionStringTest()
+        {
+            string connectionString = "nsqd=http://127.0.0.1:4151;";
+            var publisher = Publisher.CreateInstance(connectionString);
+
+            Assert.True(publisher is HttpPublisher);
+        }
+
+        [Fact]
+        public void CreateDefaultInstanceTest()
+        {
+            var publisher = Publisher.CreateInstance();
+            Assert.True(publisher is HttpPublisher);
+        }
+
+        [Fact]
+        public void CreateWithHostAndPortTest()
+        {
+            var publisher = Publisher.CreateInstance("127.0.0.1", 4151);
+            Assert.True(publisher is HttpPublisher);
+        }
+
+        [Fact]
+        public void CreateHttpInstanceTest()
+        {
+            var publisher = Publisher.CreateInstance(new Uri("http://127.0.0.1:4151"));
+            Assert.True(publisher is HttpPublisher);
+        }
+
+        [Fact]
+        public void CreateTcpInstanceTest()
+        {
+            var publisher = Publisher.CreateInstance(new Uri("tcp://127.0.0.1:4151"));
+            Assert.True(publisher is TcpPublisher);
+        }
+
         [Fact]            
         public void InvalidHostTest()
         {
