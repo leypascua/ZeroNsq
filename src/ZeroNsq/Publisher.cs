@@ -46,9 +46,6 @@ namespace ZeroNsq
                     _connection = null;
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
                 disposedValue = true;
             }
         }
@@ -63,8 +60,7 @@ namespace ZeroNsq
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(true);
-            // TODO: uncomment the following line if the finalizer is overridden above.
+            Dispose(true);            
             // GC.SuppressFinalize(this);
         }
         #endregion
