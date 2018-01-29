@@ -36,7 +36,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(8110))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
-            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
             {
                 consumer.Start(topicName, onMessageReceived, OnConnectionError);
 
@@ -84,7 +84,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(8111))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
-            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
             {
                 consumer.Start(topicName, onMessageReceived, OnConnectionError);
                 publisher.Publish(topicName, "foo");
@@ -115,7 +115,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(8112))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
-            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
             {
                 consumer.Start(topicName, onMessageReceived, OnConnectionError);
                 publisher.Publish(topicName, expectedMessage);
@@ -161,7 +161,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(8113))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
-            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
             {
                 consumer.Start(topicName, onMessageReceived, OnConnectionError);
                 publisher.Publish(topicName, expectedMessage);
@@ -198,7 +198,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(8114))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
-            using (var publisher = new Publisher(nsqd.Host, nsqd.Port, opt))
+            using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
             {
                 consumer.Start(topicName, onMessageReceived, onConnectionError);
                 publisher.Publish(topicName, expectedErrorMessage);

@@ -18,7 +18,7 @@ namespace ZeroNsq.Tests
             var options = ConnectionOptions.Default;
 
             using (var conn = new NsqConnectionProxy(Nsqd.Local, 31685, options))
-            using (var pub = new Publisher(conn, ConnectionOptions.Default))
+            using (var pub = new TcpPublisher(conn, ConnectionOptions.Default))
             {
                 Assert.Throws<SocketException>(() => pub.Publish(Nsqd.DefaultTopicName, Message));
             }
@@ -31,7 +31,7 @@ namespace ZeroNsq.Tests
 
             using (var nsqd = Nsqd.StartLocal(7111))
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
-            using (var pub = new Publisher(conn, options))
+            using (var pub = new TcpPublisher(conn, options))
             {
                 pub.Publish(Nsqd.DefaultTopicName, Message);
             }
@@ -44,7 +44,7 @@ namespace ZeroNsq.Tests
 
             using (var nsqd = Nsqd.StartLocal(7112))
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
-            using (var pub = new Publisher(conn, options))
+            using (var pub = new TcpPublisher(conn, options))
             {
                 string topicName = string.Format("{0}{1}{2}", Nsqd.DefaultTopicName, Guid.NewGuid(), Guid.NewGuid());
                 Assert.Throws<ArgumentException>(() => pub.Publish(topicName, Message));
@@ -58,7 +58,7 @@ namespace ZeroNsq.Tests
 
             using (var nsqd = Nsqd.StartLocal(7113))
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
-            using (var pub = new Publisher(conn, options))
+            using (var pub = new TcpPublisher(conn, options))
             {
                 string topicName = "This.Topic$";
                 Assert.Throws<ArgumentException>(() => pub.Publish(topicName, Message));
@@ -72,7 +72,7 @@ namespace ZeroNsq.Tests
 
             using (var nsqd = Nsqd.StartLocal(7114))
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
-            using (var pub = new Publisher(conn, options))
+            using (var pub = new TcpPublisher(conn, options))
             {
                 pub.Publish(Nsqd.DefaultTopicName, Message);
 

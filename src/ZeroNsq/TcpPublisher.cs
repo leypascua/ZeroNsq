@@ -3,17 +3,17 @@ using ZeroNsq.Protocol;
 
 namespace ZeroNsq
 {
-    public class Publisher : IDisposable
+    public class TcpPublisher : IDisposable
     {
         private bool disposedValue = false; // To detect redundant calls
         private INsqConnection _connection;
         private readonly ConnectionOptions _options;
 
-        public Publisher(string host, int port) : this(host, port, ConnectionOptions.Default) { }
+        public TcpPublisher(string host, int port) : this(host, port, ConnectionOptions.Default) { }
 
-        public Publisher(string host, int port, ConnectionOptions options) : this(new NsqConnectionProxy(host, port, options), options) { }
+        public TcpPublisher(string host, int port, ConnectionOptions options) : this(new NsqConnectionProxy(host, port, options), options) { }
 
-        public Publisher(INsqConnection connection, ConnectionOptions options)
+        public TcpPublisher(INsqConnection connection, ConnectionOptions options)
         {
             _connection = connection;
             _options = options;
