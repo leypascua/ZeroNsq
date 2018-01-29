@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using ZeroNsq.Helpers;
 
-namespace ZeroNsq
+namespace ZeroNsq.Protocol
 {
     public class Message : IMessage
     {
