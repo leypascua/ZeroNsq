@@ -60,9 +60,11 @@ namespace ZeroNsq
         {
             if (endpointUri.Scheme == "http")
             {
+                LogProvider.Current.Debug("Creating an instance of HttpPublisher");
                 return new HttpPublisher(endpointUri.Host, endpointUri.Port);
             }
 
+            LogProvider.Current.Debug("Creating an instance of TcpPublisher");
             return new TcpPublisher(endpointUri.Host, endpointUri.Port);
         }
     }

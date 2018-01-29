@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Timers;
 using ZeroNsq.Internal;
@@ -38,6 +38,8 @@ namespace ZeroNsq
             
             _pollingTimer = new System.Timers.Timer(pollingTimeout.TotalMilliseconds);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
+
+            LogProvider.Current.Debug(string.Format("New subscriber instance. Topic={0}; Channel={1}", topicName, channelName));
         }
 
         /// <summary>
@@ -93,6 +95,8 @@ namespace ZeroNsq
         {
             if (IsActive) return;
 
+            LogProvider.Current.Info(string.Format("Subscriber started. Topic={0}; Channel={1}", _topicName, _channelName));
+
             lock (_startLock)
             {
                 MonitorConnections(true, throwConnectionException: true);
@@ -118,6 +122,7 @@ namespace ZeroNsq
                 }
 
                 _isRunning = false;
+                LogProvider.Current.Info(string.Format("Subscriber stopped. Topic={0}; Channel={1}", _topicName, _channelName));
             }
         }
 
@@ -126,7 +131,7 @@ namespace ZeroNsq
             var timer = sender as System.Timers.Timer;
             if (timer == null) return;
 
-            Trace.WriteLine("OnPollingTimerElapsed");
+            LogProvider.Current.Info(string.Format("Subscriber polling timer elapsed. Monitoring connections. Topic={0}; Channel={1}", _topicName, _channelName));
 
             timer.Stop();
 
@@ -134,6 +139,7 @@ namespace ZeroNsq
 
             if (!isMonitored)
             {
+                LogProvider.Current.Error(string.Format("Subscriber polling timer terminated. Topic={0}; Channel={1}", _topicName, _channelName));
                 return;
             }
 
@@ -148,8 +154,9 @@ namespace ZeroNsq
             if (!isRunning) return false;
             if (_consumerFactory == null) return false;
 
-            IEnumerable<Consumer> consumers = _consumerFactory.GetInstances(_topicName);
-            
+            IEnumerable<Consumer> consumers = _consumerFactory.GetInstances(_topicName).ToList();
+            LogProvider.Current.Info(string.Format("Consumers found={0}. Topic={1}; Channel={2}", consumers.Count(), _topicName, _channelName));
+
             foreach (Consumer consumer in consumers)
             {
                 try
@@ -164,6 +171,8 @@ namespace ZeroNsq
                 }
                 catch (BaseException ex)
                 {
+                    LogProvider.Current.Error(string.Format("Subscriber error occurred. Topic={0}; Channel={1}; Reason=", _topicName, _channelName, ex.Message));
+
                     if (_onConnectionErrorCallback != null)
                     {
                         _onConnectionErrorCallback(new ConnectionErrorContext(consumer.Connection, ex));
