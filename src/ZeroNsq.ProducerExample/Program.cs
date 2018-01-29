@@ -11,7 +11,7 @@ namespace ZeroNsq.ProducerExample
             string topicName = "ZeroNsq.SimpleExample.Program";
             string connectionString = string.Format("nsqd=tcp://{0}:4150;", Localhost);
 
-            using (var publisher = new TcpPublisher(Localhost, 4150))
+            using (IPublisher publisher = new TcpPublisher(Localhost, 4150))
             {
                 Console.WriteLine("Type a message then hit [enter] to publish.");
                 Console.WriteLine("Press [ctrl + c] to terminate.");

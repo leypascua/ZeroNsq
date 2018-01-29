@@ -3,7 +3,7 @@ using ZeroNsq.Protocol;
 
 namespace ZeroNsq
 {
-    public class TcpPublisher : IDisposable
+    public class TcpPublisher : IPublisher
     {
         private bool disposedValue = false; // To detect redundant calls
         private INsqConnection _connection;
