@@ -53,6 +53,7 @@ namespace ZeroNsq.Internal
 
                 try
                 {
+                    LogProvider.Current.Debug(string.Format("Connecting to Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));
                     _tcpClient.ConnectAsync(_endpoint.Host, _endpoint.Port).Wait();
                 }                
                 catch (AggregateException ex)
@@ -68,6 +69,7 @@ namespace ZeroNsq.Internal
                 
                 _networkStream = _tcpClient.GetStream();
                 _frameReader = new FrameReader(_networkStream);
+                LogProvider.Current.Info(string.Format("Connection established. Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));
             }
 
             return this;

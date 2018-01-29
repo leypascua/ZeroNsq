@@ -44,6 +44,7 @@ namespace ZeroNsq.Internal
 
             using (var sc = new StreamContent(messageStream))
             {
+                LogProvider.Current.Debug(string.Format("Publishing a message on topic [{0}]", topic));
                 await PostAsync(Pub, string.Format("topic={0}", topicName), sc);
             }
         }
@@ -78,6 +79,7 @@ namespace ZeroNsq.Internal
 
             if (!response.IsSuccessStatusCode)
             {
+                LogProvider.Current.Error("Request failed. Reason: " + response.ReasonPhrase);
                 throw new RequestException(response.ReasonPhrase);
             }
         }

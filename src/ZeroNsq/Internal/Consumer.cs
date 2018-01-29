@@ -57,6 +57,7 @@ namespace ZeroNsq.Internal
                 {
                     if (!IsConnected)
                     {
+                        LogProvider.Current.Info(string.Format("Connecting consumer. Topic={0}; Channel={1};", _topicName, channelName));
                         Connection.Connect();
                         Connection.SendRequest(new Subscribe(_topicName, channelName));
                         AdviseReady(_options.MaxInFlight);
@@ -65,6 +66,8 @@ namespace ZeroNsq.Internal
             }
             catch (Exception ex)
             {
+                LogProvider.Current.Error(string.Format("Consumer Error occurred. ", ex.ToString()));
+
                 if (connectionErrorCallback != null)
                 {
                     connectionErrorCallback(new ConnectionErrorContext(Connection, ex));
@@ -85,6 +88,7 @@ namespace ZeroNsq.Internal
                 {
                     Connection.Close();
                     _isReady = false;
+                    LogProvider.Current.Info(string.Format("Stopping consumer instance. Topic={0};", _topicName));
                 }
             }
         }
@@ -117,10 +121,13 @@ namespace ZeroNsq.Internal
         {
             try
             {
+                LogProvider.Current.Debug("Executing consumer callback");
                 callback(messageContext);
             }
             catch (Exception ex)
             {
+                LogProvider.Current.Error(ex.ToString());
+
                 if (errorCallback != null)
                 {
                     errorCallback(new ConnectionErrorContext(conn, ex));
@@ -130,6 +137,7 @@ namespace ZeroNsq.Internal
                 if (!isKnownException)
                 {
                     // not caused by ZeroNsq. Stop incoming messages from flowing.
+                    LogProvider.Current.Warn("Unknown error detected. Advising RDY 0 to daemon.");
                     AdviseReady(0);
                 }
             }
@@ -158,6 +166,7 @@ namespace ZeroNsq.Internal
 
                     if (activeTaskCount <= _options.MaxInFlight) break;
 
+                    LogProvider.Current.Info(string.Format("Too many worker threads for channel [{0}] are running. Waiting for one to finish...", channelName));
                     Thread.Sleep(TimeSpan.FromSeconds(1));
                 }
 

@@ -126,6 +126,7 @@ namespace ZeroNsq.Internal
         public void Close()
         {
             if (!IsConnected) return;
+            
             DispatchCls();
 
             if (_workerCancellationTokenSource != null)
@@ -151,6 +152,7 @@ namespace ZeroNsq.Internal
             }
 
             _isIdentified = false;
+            LogProvider.Current.Info("NsqdConnection is closed.");
         }
 
         internal void SendRequest(byte[] request)
@@ -162,6 +164,7 @@ namespace ZeroNsq.Internal
         {
             try
             {
+                LogProvider.Current.Debug("NsqdConnection: Advise CLS to daemon host");
                 // ignore all errors for this command.
                 _connectionResource.WriteBytes(Commands.CLS);
                 Thread.Sleep(TimeSpan.FromSeconds(2));
@@ -187,14 +190,18 @@ namespace ZeroNsq.Internal
             {
                 if (!IsConnected)
                 {
+                    LogProvider.Current.Error(ConnectionException.ClosedBeforeResponseReceived);
                     throw new ConnectionException(ConnectionException.ClosedBeforeResponseReceived);
                 }
 
-                throw new ProtocolViolationException("A valid response was not received for the last sent request.");
+                string protocolError = "A valid response was not received for the last sent request.";
+                LogProvider.Current.Error(protocolError);
+                throw new ProtocolViolationException(protocolError);
             }
 
             if (!response.IsSuccessful)
             {
+                LogProvider.Current.Error(response.Error);
                 throw new RequestException(response.Error);
             }
         }
@@ -204,6 +211,7 @@ namespace ZeroNsq.Internal
             var frame = ReadFrame();
             if (frame == null)
             {
+                LogProvider.Current.Warn("Frame not received in a timely manner.");
                 return null;
             }
 
@@ -227,7 +235,9 @@ namespace ZeroNsq.Internal
                 return new Response(frame.Data, frame.ToASCII());
             }
 
-            throw new NotSupportedException("Unsupported frame type: " + frame.Type.ToString());
+            string unsupportedError = "Unsupported frame type: " + frame.Type.ToString();
+            LogProvider.Current.Fatal(unsupportedError);
+            throw new NotSupportedException(unsupportedError);
         }
 
         private void WorkerLoop()
@@ -257,18 +267,24 @@ namespace ZeroNsq.Internal
 
                 OnFrameReceived(frame);
 
+                LogProvider.Current.Debug("NsqdConnection.WorkerLoop is sleeping.");
                 Thread.Sleep(DefaultThreadSleepTime);
             }
+
+            LogProvider.Current.Info("NsqdConnection worker loop terminated.");
         }
 
         private void OnFrameReceived(Frame frame)
         {
+            LogProvider.Current.Debug("NsqdConnection.OnFrameReceived: " + frame.Type.ToString());
+
             switch (frame.Type)
             {
                 case FrameType.Response:
                 case FrameType.Error:
                     if (frame.Data.SequenceEqual(Response.Heartbeat))
                     {
+                        LogProvider.Current.Debug("Heartbeat request received. Responding with NOP");
                         SendRequest(Commands.NOP);
                         return;
                     }                
@@ -301,6 +317,7 @@ namespace ZeroNsq.Internal
 
                     if (isMessageAvailable)
                     {
+                        LogProvider.Current.Debug("Message is available, invoking _onMessageReceivedCallback for message");
                         _onMessageReceivedCallback(msg);
                     }
                 }
@@ -309,6 +326,7 @@ namespace ZeroNsq.Internal
 
         private void PerformHandshake(ConnectionOptions options)
         {
+            LogProvider.Current.Debug(string.Format("Performing handshake"));
             SendRequest(Commands.MAGIC_V2, isForced: true);
             SendRequest(new Identify
             {
@@ -325,6 +343,7 @@ namespace ZeroNsq.Internal
             }
 
             _isIdentified = true;
+            LogProvider.Current.Debug(string.Format("Handshake completed."));
         }
 
         private void SendRequest(byte[] payload, bool isForced = false)
@@ -370,7 +389,9 @@ namespace ZeroNsq.Internal
                     if (knownErrors.Any())
                     {
                         string message = string.Join(";", knownErrors);
-                        throw new ConnectionException("One or more errors occurred. " + message);
+                        string errorMessage = "One or more errors occurred. " + message;
+                        LogProvider.Current.Error(errorMessage);
+                        throw new ConnectionException(errorMessage);
                     }
 
                     throw instance._workerTask.Exception.Flatten();
@@ -381,7 +402,9 @@ namespace ZeroNsq.Internal
                     throw instance._workerLoopException;
                 }
 
-                throw new ConnectionException("Unable to perform request with a closed connection.");
+                string connectionErrorMessage = "Unable to perform request with a closed connection.";
+                LogProvider.Current.Error(connectionErrorMessage);
+                throw new ConnectionException(connectionErrorMessage);
             }
         }
 

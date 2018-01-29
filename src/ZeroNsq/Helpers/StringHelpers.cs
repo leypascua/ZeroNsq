@@ -46,11 +46,13 @@ namespace ZeroNsq.Helpers
 
             if (input.Length > MaxNsqNameLength)
             {
+                LogProvider.Current.Error("Not a valid NSQ name: " + input);
                 throw new ArgumentException("Name cannot exceed 64 characters.");
             }
 
             if (!NameValidationRegEx.IsMatch(input))
             {
+                LogProvider.Current.Error("Not a valid NSQ name: " + input);
                 throw new ArgumentException("Names may only contain ASCII alpha-numeric characters, dashes and underscores.");
             }
 

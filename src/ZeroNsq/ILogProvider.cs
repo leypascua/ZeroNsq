@@ -63,7 +63,7 @@ namespace ZeroNsq
 
         public void Debug(string message)
         {
-            WriteTrace("DEBUG", message);
+            System.Diagnostics.Debug.WriteLine(BuildText("DEBUG", message));
         }
 
         public void Error(string message)
@@ -88,8 +88,13 @@ namespace ZeroNsq
 
         private void WriteTrace(string level, string message)
         {
+            System.Diagnostics.Trace.WriteLine(BuildText(level, message), "ZeroNsq.LogProvider.Trace");
+        }
+
+        private string BuildText(string level, string message)
+        {
             string messageFormat = string.Format("{0} [{1}] {2}", DateTime.Now.ToString("yyyy-MM-ddThh:mm:ss"), level, message);
-            System.Diagnostics.Trace.WriteLine(messageFormat, "ZeroNsq.LogProvider.Trace");
+            return messageFormat;
         }
     }
 }

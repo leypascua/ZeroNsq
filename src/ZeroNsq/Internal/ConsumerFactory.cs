@@ -62,6 +62,7 @@ namespace ZeroNsq.Internal
 
                 foreach (var key in obsoleteKeys)
                 {
+                    LogProvider.Current.Warn(string.Format("Stopping consumer instance: {0}", key));
                     _activeConsumers[key].Stop();
                     _activeConsumers.Remove(key);
                 }

@@ -166,7 +166,9 @@ namespace ZeroNsq
 
                     if (!consumer.IsConnected)
                     {
+                        LogProvider.Current.Debug(string.Format("Starting consumer. Topic={0}; Channel={1}", _topicName, _channelName));
                         consumer.Start(_channelName, _onMessageReceivedCallback, _onConnectionErrorCallback, throwConnectionException);
+                        LogProvider.Current.Debug(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, _channelName));
                     }
                 }
                 catch (BaseException ex)
