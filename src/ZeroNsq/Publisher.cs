@@ -37,7 +37,13 @@ namespace ZeroNsq
             {
                 if (disposing)
                 {
-                    // TODO: dispose managed state (managed objects).
+                    try
+                    {
+                        _connection.Close();
+                    }
+                    catch {}
+                    
+                    _connection = null;
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

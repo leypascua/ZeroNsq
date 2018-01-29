@@ -7,13 +7,13 @@ using System.Timers;
 using System.Collections.Concurrent;
 using ZeroNsq.Protocol;
 using System.Threading;
+using System.Diagnostics;
 
 namespace ZeroNsq
 {
     public class Subscriber : IDisposable
     {
         private static readonly int DefaultHeartbeatIntervalInSeconds = 60;
-        private readonly TimeSpan _defaultHeartbeatInterval;
         private readonly object _startLock = new object();
         private readonly SubscriberOptions _options;        
         private readonly string _topicName;
@@ -22,7 +22,7 @@ namespace ZeroNsq
         private readonly ConsumerFactory _consumerFactory;
         private Action<IMessageContext> _onMessageReceivedCallback = ctx => { };
         private Action<ConnectionErrorContext> _onConnectionErrorCallback = ctx => { };
-        private Task _workerTask;        
+        private System.Timers.Timer _pollingTimer;
         private bool _isRunning;
 
         public Subscriber(string topicName, string channelName, SubscriberOptions options) : this(topicName, channelName, options, null) { }
@@ -34,16 +34,18 @@ namespace ZeroNsq
             _options = options;
             _cancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
             _consumerFactory = new ConsumerFactory(options, _cancellationTokenSource.Token);
-            _defaultHeartbeatInterval = TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.GetValueOrDefault(DefaultHeartbeatIntervalInSeconds) * 2);            
+
+            var pollingTimeout = TimeSpan.FromSeconds(DefaultHeartbeatIntervalInSeconds);
+            
+            _pollingTimer = new System.Timers.Timer(pollingTimeout.TotalMilliseconds);
+            _pollingTimer.Elapsed += OnPollingTimerElapsed;
         }
 
         public bool IsActive
         {
             get
             {
-                bool isWorkerActive = _workerTask != null &&
-                    !_workerTask.IsCompleted;
-
+                bool isWorkerActive = _pollingTimer != null;
                 return _isRunning && isWorkerActive && !_cancellationTokenSource.IsCancellationRequested;
             }
         }
@@ -67,59 +69,50 @@ namespace ZeroNsq
             lock (_startLock)
             {
                 MonitorConnections(true, throwConnectionException: true);
-
-                _workerTask = Task.Factory.StartNew(
-                    WorkerLoop,
-                    _cancellationTokenSource.Token,
-                    TaskCreationOptions.LongRunning,
-                    TaskScheduler.Current);
-
                 _isRunning = true;
+                _pollingTimer.Start();
             }
         }
 
         public void Stop()
         {
-            if (_consumerFactory != null)
+            lock (_startLock)
             {
-                _consumerFactory.Reset();
-            }
-
-            _isRunning = false;
-
-            if (_cancellationTokenSource != null)
-            {
-                _cancellationTokenSource.Cancel();
-            }
-
-            if (_workerTask != null)
-            {
-                try
+                if (_pollingTimer != null)
                 {
-                    if (!_workerTask.IsCompleted)
-                    {
-                        _workerTask.Wait();
-                        _workerTask.Dispose();
-                    }
+                    _pollingTimer.Stop();
+                    _pollingTimer.Dispose();
+                    _pollingTimer = null;
                 }
-                catch (BaseException) { }
-                
-                _workerTask = null;
+
+                if (_consumerFactory != null)
+                {
+                    _consumerFactory.Reset();
+                }
+
+                _isRunning = false;
             }
         }
 
-        private void WorkerLoop()
+        private void OnPollingTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            while (IsActive)
+            var timer = sender as System.Timers.Timer;
+            if (timer == null) return;
+
+            Trace.WriteLine("OnPollingTimerElapsed");
+
+            timer.Stop();
+
+            bool isMonitored = MonitorConnections(IsActive, throwConnectionException: false);
+
+            if (!isMonitored)
             {
-                bool isMonitored = MonitorConnections(IsActive, throwConnectionException: false);
+                return;
+            }
 
-                if (!isMonitored)
-                {
-                    break;
-                }
-
-                Thread.Sleep(_defaultHeartbeatInterval);
+            if (_isRunning)
+            {
+                timer.Start();
             }
         }
 
