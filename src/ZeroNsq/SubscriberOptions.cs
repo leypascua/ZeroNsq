@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Collections;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Net;
+using ZeroNsq.Internal;
 
 namespace ZeroNsq
 {

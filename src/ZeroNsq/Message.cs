@@ -1,31 +1,20 @@
 ﻿using Jil;
 using System;
-using System.Buffers;
 using System.IO;
 using System.Text;
 using ZeroNsq.Helpers;
 
 namespace ZeroNsq
 {
-    /// <summary>
-    /// An abstraction of NSQ's incoming message
-    /// </summary>
-    public class Message
+    public class Message : IMessage
     {
         private const int MessageHeaderLength = 26;
         private const int TimestampHeaderLength = 8;
         private const int AttemptsHeaderLength = 2;
         private const int MessageIdHeaderLength = 16;
 
-        /// <summary>
-        /// Creates a new instance
-        /// </summary>
         public Message() { }
 
-        /// <summary>
-        /// Creates a new instance with given data
-        /// </summary>
-        /// <param name="data">The data</param>
         public Message(string data)
         {
             Timestamp = DateTime.UtcNow.ToUnixTimestamp();
@@ -33,10 +22,6 @@ namespace ZeroNsq
             Body = Encoding.UTF8.GetBytes(data);
         }
 
-        /// <summary>
-        /// Creates a new intance with given data
-        /// </summary>
-        /// <param name="data">The data</param>
         public Message(byte[] data)
         {
             using (var ms = new MemoryStream(data))
@@ -48,24 +33,12 @@ namespace ZeroNsq
             }
         }
 
-        /// <summary>
-        /// Gets the timestamp of the message as provided by NSQ
-        /// </summary>
         public long Timestamp { get; set; }
 
-        /// <summary>
-        /// Gets the total number of attempts
-        /// </summary>
         public short Attempts { get; set; }
 
-        /// <summary>
-        /// Gets the ID of the message
-        /// </summary>
         public byte[] Id { get; set; }
 
-        /// <summary>
-        /// Gets the ID of the message as a UTF8 string
-        /// </summary>
         public string IdString
         {
             get
@@ -74,15 +47,8 @@ namespace ZeroNsq
             }
         }
 
-        /// <summary>
-        /// Gets the body of the message
-        /// </summary>
         public byte[] Body { get; set; }
 
-        /// <summary>
-        /// Converts the message to a byte array
-        /// </summary>
-        /// <returns></returns>
         public byte[] ToByteArray()
         {
             EnsureNonEmptyBody();
@@ -99,21 +65,12 @@ namespace ZeroNsq
             return ToUtf8String();
         }
 
-        /// <summary>
-        /// Converts the body of the message to a UTF8 string
-        /// </summary>
-        /// <returns></returns>
         public string ToUtf8String()
         {
             EnsureNonEmptyBody();
             return Encoding.UTF8.GetString(Body);
         }
 
-        /// <summary>
-        /// Deserializes the message into an instance of TResult
-        /// </summary>
-        /// <typeparam name="TResult">The type of object to be used in deserialization</typeparam>
-        /// <returns>The deserialized message</returns>
         public TResult Deserialize<TResult>() where TResult : class, new()
         {
             if (Body == null || Body.Length == 0)

@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Text;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using ZeroNsq.Lookup;
 
-namespace ZeroNsq
+namespace ZeroNsq.Internal
 {
     public class ConsumerFactory : IDisposable
     {   

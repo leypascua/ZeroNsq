@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Linq;
-using Xunit;
+﻿using System.Linq;
 using System.Net;
+using Xunit;
+using ZeroNsq.Internal;
 
 namespace ZeroNsq.Tests
 {

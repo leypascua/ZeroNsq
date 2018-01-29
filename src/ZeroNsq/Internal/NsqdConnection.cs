@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ZeroNsq.Protocol;
 
-namespace ZeroNsq
+namespace ZeroNsq.Internal
 {
     public class NsqdConnection : INsqConnection, IDisposable
     {

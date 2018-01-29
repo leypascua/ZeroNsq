@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using ZeroNsq.Protocol;
-using ZeroNsq.Helpers;
 using System.Threading.Tasks;
+using ZeroNsq.Protocol;
 
-namespace ZeroNsq
+namespace ZeroNsq.Internal
 {
     public class ConnectionResource : IDisposable
     {

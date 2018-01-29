@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using Xunit;
+using ZeroNsq.Internal;
 using ZeroNsq.Tests.Utils;
 
 namespace ZeroNsq.Tests

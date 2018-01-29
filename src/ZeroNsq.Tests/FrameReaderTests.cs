@@ -4,6 +4,7 @@ using System.Text;
 using System.Linq;
 using Xunit;
 using ZeroNsq.Protocol;
+using ZeroNsq.Internal;
 
 namespace ZeroNsq.Tests
 {   

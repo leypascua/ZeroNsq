@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
+﻿using FakeItEasy;
+using System;
 using System.Linq;
-using Xunit;
-using ZeroNsq.Tests.Utils;
 using System.Net;
+using System.Threading;
+using Xunit;
+using ZeroNsq.Internal;
 using ZeroNsq.Lookup;
-using FakeItEasy;
+using ZeroNsq.Tests.Utils;
 
 namespace ZeroNsq.Tests
 {

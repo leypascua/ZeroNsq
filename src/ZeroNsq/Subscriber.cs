@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Timers;
-using System.Collections.Concurrent;
-using ZeroNsq.Protocol;
-using System.Threading;
 using System.Diagnostics;
+using System.Threading;
+using System.Timers;
+using ZeroNsq.Internal;
 
 namespace ZeroNsq
 {

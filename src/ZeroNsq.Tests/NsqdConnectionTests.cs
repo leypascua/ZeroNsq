@@ -6,6 +6,7 @@ using ZeroNsq.Protocol;
 using ZeroNsq.Tests.Utils;
 using ZeroNsq.Helpers;
 using System.Threading.Tasks;
+using ZeroNsq.Internal;
 
 namespace ZeroNsq.Tests
 {

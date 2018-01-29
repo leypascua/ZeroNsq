@@ -1,7 +1,7 @@
 ﻿using System;
 using ZeroNsq.Protocol;
 
-namespace ZeroNsq
+namespace ZeroNsq.Internal
 {
     public class TcpPublisher : IPublisher
     {

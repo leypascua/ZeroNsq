@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ZeroNsq.Protocol;
 
-namespace ZeroNsq
+namespace ZeroNsq.Internal
 {
     public class Consumer : IDisposable
     {   

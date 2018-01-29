@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Net.Sockets;
 using System.Threading;
-using ZeroNsq.Protocol;
 using ZeroNsq.Helpers;
+using ZeroNsq.Protocol;
 
-namespace ZeroNsq
+namespace ZeroNsq.Internal
 {
     public class NsqConnectionProxy : INsqConnection, IDisposable
     {
