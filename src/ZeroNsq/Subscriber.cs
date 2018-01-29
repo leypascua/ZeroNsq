@@ -11,7 +11,7 @@ using System.Diagnostics;
 
 namespace ZeroNsq
 {
-    public class Subscriber : IDisposable
+    public class Subscriber : ISubscriber
     {
         private static readonly int DefaultHeartbeatIntervalInSeconds = 60;
         private readonly object _startLock = new object();
@@ -25,9 +25,9 @@ namespace ZeroNsq
         private System.Timers.Timer _pollingTimer;
         private bool _isRunning;
 
-        public Subscriber(string topicName, string channelName, SubscriberOptions options) : this(topicName, channelName, options, null) { }
+        private Subscriber(string topicName, string channelName, SubscriberOptions options) : this(topicName, channelName, options, null) { }
 
-        public Subscriber(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
+        private Subscriber(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
         {
             _topicName = topicName;
             _channelName = channelName;
@@ -50,19 +50,29 @@ namespace ZeroNsq
             }
         }
 
-        public Subscriber OnConnectionError(Action<ConnectionErrorContext> callback)
+        public static ISubscriber CreateInstance(string topicName, string channelName, SubscriberOptions options)
+        {
+            return CreateInstance(topicName, channelName, options, null);
+        }
+
+        public static ISubscriber CreateInstance(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
+        {
+            return new Subscriber(topicName, channelName, options, cancellationTokenSource ?? new CancellationTokenSource());
+        }
+
+        ISubscriber ISubscriber.OnConnectionError(Action<ConnectionErrorContext> callback)
         {
             _onConnectionErrorCallback = callback;
             return this;
         }
 
-        public Subscriber OnMessageReceived(Action<IMessageContext> callback)
+        ISubscriber ISubscriber.OnMessageReceived(Action<IMessageContext> callback)
         {
             _onMessageReceivedCallback = callback;
             return this;
         }
 
-        public void Start()
+        void ISubscriber.Start()
         {
             if (IsActive) return;
 
@@ -74,7 +84,7 @@ namespace ZeroNsq
             }
         }
 
-        public void Stop()
+        void ISubscriber.Stop()
         {
             lock (_startLock)
             {
@@ -156,7 +166,7 @@ namespace ZeroNsq
 
         public void Dispose()
         {
-            Stop();
+            (this as ISubscriber).Stop();
 
             if (_cancellationTokenSource != null)
             {

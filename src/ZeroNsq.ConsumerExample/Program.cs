@@ -15,7 +15,7 @@ namespace ZeroNsq.ConsumerExample
             string channelName = topicName + ".Channel";
             string connectionString = string.Format("nsqd=tcp://{0}:4150;", Localhost);
 
-            using (var subscriber = new Subscriber(topicName, channelName, SubscriberOptions.Parse(connectionString)))
+            using (ISubscriber subscriber = Subscriber.CreateInstance(topicName, channelName, SubscriberOptions.Parse(connectionString)))
             {
                 subscriber
                     .OnMessageReceived(HandleMessage)

@@ -58,6 +58,29 @@ namespace ZeroNsq.Tests
             Assert.True(publisher is TcpPublisher);
         }
 
+        [Fact]
+        public void HttpErrorResponseTest()
+        {
+            using (var nsqd = Nsqd.StartLocal(7110))
+            using (var pub = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
+            {
+                string topicName = "Test.Topic";
+
+                Assert.Throws<RequestException>(() => pub.Publish(topicName, new byte[0]));
+            }
+        }
+
+        [Fact]
+        public void HttpPublisherVeryLongTopicNameTest()
+        {
+            using (var nsqd = Nsqd.StartLocal(7100))
+            using (var pub = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
+            {
+                string topicName = "Test.Topic" + new string('z', 64);
+                Assert.Throws<ArgumentException>(() => pub.Publish(topicName, new byte[0]));
+            }
+        }
+
         [Fact]            
         public void InvalidHostTest()
         {

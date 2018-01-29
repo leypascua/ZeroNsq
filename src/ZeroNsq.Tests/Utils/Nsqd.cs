@@ -52,8 +52,10 @@ namespace ZeroNsq.Tests.Utils
                 dinfo.Create();
             }
 
+            int httpPort = port + 500;
+
             string args = string.Format("-tcp-address {0}:{1} -http-address {0}:{2} -data-path {3}",
-                host, port, port + 500, dinfo.FullName);
+                host, port, httpPort, dinfo.FullName);
 
             Process = Process.Start("nsqd.exe", args);
 
@@ -70,12 +72,14 @@ namespace ZeroNsq.Tests.Utils
 
             Host = host;
             Port = port;
+            HttpPort = httpPort;
         }
 
         public Process Process { get; private set; }
 
         public string Host { get; private set; }
         public int Port { get; private set; }
+        public int HttpPort { get; private set; }
 
         public void Kill()
         {

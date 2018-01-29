@@ -41,9 +41,11 @@ namespace ZeroNsq
 
         public async Task PublishAsync(string topic, Stream messageStream)
         {
+            string topicName = Helpers.StringHelpers.EnforceValidNsqName(topic);
+
             using (var sc = new StreamContent(messageStream))
             {
-                await PostAsync(Pub, string.Format("topic={0}", topic), sc);
+                await PostAsync(Pub, string.Format("topic={0}", topicName), sc);
             }
         }
 
@@ -62,12 +64,23 @@ namespace ZeroNsq
             }
         }
 
+        public void PublishJson<TMessage>(string topic, TMessage message) where TMessage : class, new()
+        {
+            string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
+            Publish(topic, json);
+        }
+
         public void Dispose() {}
 
         private async Task PostAsync(string path, string query, HttpContent content)
         {
             string requestUri = BuildUri(path, query);
-            await HttpClient.PostAsync(requestUri, content);
+            var response = await HttpClient.PostAsync(requestUri, content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new RequestException(response.ReasonPhrase);
+            }
         }
 
         private string BuildUri(string path, string query)

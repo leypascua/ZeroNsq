@@ -29,6 +29,12 @@ namespace ZeroNsq
             _connection.SendRequest(new Publish(topic, utf8String));
         }
 
+        public void PublishJson<TMessage>(string topic, TMessage message) where TMessage : class, new()
+        {
+            string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
+            Publish(topic, json);
+        }
+
         #region IDisposable Support
 
         protected virtual void Dispose(bool disposing)
