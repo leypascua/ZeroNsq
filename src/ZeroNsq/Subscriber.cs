@@ -11,6 +11,9 @@ using System.Diagnostics;
 
 namespace ZeroNsq
 {
+    /// <summary>
+    /// An abstraction of NSQ's consumer connection.
+    /// </summary>
     public class Subscriber : ISubscriber
     {
         private static readonly int DefaultHeartbeatIntervalInSeconds = 60;
@@ -41,6 +44,9 @@ namespace ZeroNsq
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
         }
 
+        /// <summary>
+        /// Gets if the subscriber instance is active
+        /// </summary>
         public bool IsActive
         {
             get
@@ -50,11 +56,26 @@ namespace ZeroNsq
             }
         }
 
+        /// <summary>
+        /// Creates a new subscriber instance
+        /// </summary>
+        /// <param name="topicName">The topic name</param>
+        /// <param name="channelName">The channel name</param>
+        /// <param name="options">The subscriber options</param>
+        /// <returns>A subscriber instance</returns>
         public static ISubscriber CreateInstance(string topicName, string channelName, SubscriberOptions options)
         {
             return CreateInstance(topicName, channelName, options, null);
         }
 
+        /// <summary>
+        /// Creates a new subscriber instance
+        /// </summary>
+        /// <param name="topicName">The topic name</param>
+        /// <param name="channelName">The channel name</param>
+        /// <param name="options">The subscriber options</param>
+        /// <param name="cancellationTokenSource">The cancellation token source</param>
+        /// <returns>A subscriber instance</returns>
         public static ISubscriber CreateInstance(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
         {
             return new Subscriber(topicName, channelName, options, cancellationTokenSource ?? new CancellationTokenSource());
@@ -164,6 +185,9 @@ namespace ZeroNsq
 
         #region IDisposable members
 
+        /// <summary>
+        /// Releases resources held by the subscriber instance
+        /// </summary>
         public void Dispose()
         {
             (this as ISubscriber).Stop();
