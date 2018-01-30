@@ -132,6 +132,7 @@ namespace ZeroNsq.Internal
 
             while (MaxAllowableWorkerThreadsActive(_runningTasks, handlerContext.Options.MaxInFlight))
             {
+                LogProvider.Current.Debug(string.Format("Max allowable workers (MaxInFlight={0}) exceeded. Waiting for a handler task to complete...", handlerContext.Options.MaxInFlight));
                 Task.WaitAny(_runningTasks.ToArray());
             }
 

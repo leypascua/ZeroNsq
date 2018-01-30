@@ -218,7 +218,7 @@ namespace ZeroNsq.Tests
             string topicName = "ParallelMessageHandling." + Guid.NewGuid().ToString();
             var cancellationSource = new CancellationTokenSource();
             var opt = new SubscriberOptions { MaxInFlight = 3 };
-            double sleepTime = 1.5;
+            double sleepTime = 3;
             int expectedMessageCount = opt.MaxInFlight + 2;
             double expectedSleepTime = (expectedMessageCount - opt.MaxInFlight) * sleepTime + sleepTime;
             var resetEvent = new ManualResetEventSlim();
@@ -229,10 +229,13 @@ namespace ZeroNsq.Tests
             {
                 var receivedData = ctx.Message.Deserialize<HandledMessageData>();
                 receivedData.ThreadId = Thread.CurrentThread.ManagedThreadId.ToString();
+                receivedData.Start = DateTime.UtcNow;
+
+                Thread.Sleep(TimeSpan.FromSeconds(sleepTime));
+                
                 receivedData.End = DateTime.UtcNow;
                 receivedMessages.Add(receivedData);
 
-                Thread.Sleep(TimeSpan.FromSeconds(sleepTime));
                 LogProvider.Current.Info("Finishing index " + receivedData.Index);
                 ctx.Finish();
 
@@ -251,7 +254,7 @@ namespace ZeroNsq.Tests
 
                 Parallel.For(0, expectedMessageCount, idx =>
                 {
-                    var data = new HandledMessageData { Index = idx, Start = DateTime.UtcNow };
+                    var data = new HandledMessageData { Index = idx, Published = DateTime.UtcNow };
                     publisher.PublishJson(topicName, data);
                 });
 
@@ -269,7 +272,8 @@ namespace ZeroNsq.Tests
 
         class HandledMessageData
         {
-            public DateTime Start { get; set; }
+            public DateTime Published { get; set; }
+            public DateTime? Start { get; set; }
             public DateTime? End { get; set; }
             public string ThreadId { get; set; }
             public int Index { get; set; }
