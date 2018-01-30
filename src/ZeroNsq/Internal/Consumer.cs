@@ -80,7 +80,7 @@ namespace ZeroNsq.Internal
 
                 if (connectionErrorCallback != null)
                 {
-                    connectionErrorCallback(new ConnectionErrorContext(Connection, ex));
+                    connectionErrorCallback(new ConnectionErrorContext(Connection, ex, channelName));
                 }
 
                 if (throwConnectionException && ex is ConnectionException)
@@ -157,7 +157,7 @@ namespace ZeroNsq.Internal
 
                 if (handlerContext.ErrorCallback != null)
                 {
-                    handlerContext.ErrorCallback(new ConnectionErrorContext(handlerContext.Connection, ex));
+                    handlerContext.ErrorCallback(new ConnectionErrorContext(handlerContext.Connection, ex, msgContext.ChannelName));
                 }
 
                 bool isKnownException = ex is BaseException;

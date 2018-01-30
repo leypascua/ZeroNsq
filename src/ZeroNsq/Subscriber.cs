@@ -35,7 +35,7 @@ namespace ZeroNsq
             _cancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
             _consumerFactory = new ConsumerFactory(options, _cancellationTokenSource.Token);
 
-            var pollingTimeout = TimeSpan.FromSeconds(DefaultHeartbeatIntervalInSeconds);
+            var pollingTimeout = TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.GetValueOrDefault(DefaultHeartbeatIntervalInSeconds) + 5);
             
             _pollingTimer = new System.Timers.Timer(pollingTimeout.TotalMilliseconds);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
@@ -183,7 +183,7 @@ namespace ZeroNsq
 
                     if (_onConnectionErrorCallback != null)
                     {
-                        _onConnectionErrorCallback(new ConnectionErrorContext(consumer.Connection, ex));
+                        _onConnectionErrorCallback(new ConnectionErrorContext(consumer.Connection, ex, _channelName));
                     }
 
                     if (throwConnectionException)
