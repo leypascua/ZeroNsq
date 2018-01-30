@@ -8,6 +8,12 @@
     <FileVersion>0.0.0.0</FileVersion>
     <Description>A dead simple client for Bit.ly's NSQ (https://nsq.io)</Description>
     <Version>0.0.0</Version>
+    <Copyright>Harley Pascua</Copyright>
+    <PackageProjectUrl>https://github.com/leypascua/ZeroNsq</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/leypascua/ZeroNsq/blob/master/LICENSE.md</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/leypascua/ZeroNsq</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <NeutralLanguage>en-PH</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
