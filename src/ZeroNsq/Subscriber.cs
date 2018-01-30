@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Timers;
 using ZeroNsq.Internal;
+using ZeroNsq.Helpers;
 
 namespace ZeroNsq
 {
@@ -76,7 +77,7 @@ namespace ZeroNsq
         /// <returns>A subscriber instance</returns>
         public static ISubscriber CreateInstance(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
         {
-            return new Subscriber(topicName, channelName, options, cancellationTokenSource ?? new CancellationTokenSource());
+            return new Subscriber(topicName.EnforceValidNsqName(), channelName.EnforceValidNsqName(), options, cancellationTokenSource ?? new CancellationTokenSource());
         }
 
         ISubscriber ISubscriber.OnConnectionError(Action<ConnectionErrorContext> callback)
