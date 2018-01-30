@@ -18,7 +18,8 @@ namespace ZeroNsq.Internal
         private ConnectionResource _connectionResource;        
         private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();
         private ConcurrentQueue<Message> _receivedMessagesQueue = new ConcurrentQueue<Message>();
-        private Task _workerTask;        
+        private Thread _workerThread;
+        private bool _isWorkerThreadRunning = false;
         private CancellationTokenSource _workerCancellationTokenSource;        
         private Action<Message> _onMessageReceivedCallback = msg => { };
         private bool _isIdentified = false;
@@ -31,20 +32,18 @@ namespace ZeroNsq.Internal
         public NsqdConnection(DnsEndPoint endpoint, ConnectionOptions options = null)
         {
             _endpoint = endpoint;
-            _options = ConnectionOptions.SetDefaults(options);                        
+            _options = ConnectionOptions.SetDefaults(options);
         }
 
         public bool IsConnected
         {
             get
-            {
-                bool workerIsRunning =
-                    _workerTask != null && !_workerTask.IsCompleted; 
-
+            {   
                 return _connectionResource != null &&
                        _connectionResource.IsInitialized &&
                        _isIdentified &&
-                       workerIsRunning &&
+                       _isWorkerThreadRunning &&
+                       _workerThread != null &&
                        !_disposedValue;
             }
         }
@@ -59,11 +58,9 @@ namespace ZeroNsq.Internal
             // start the worker and wait for incoming messages
             _workerCancellationTokenSource = new CancellationTokenSource();
 
-            _workerTask = Task.Factory.StartNew(
-                WorkerLoop, 
-                _workerCancellationTokenSource.Token, 
-                TaskCreationOptions.LongRunning, 
-                TaskScheduler.Current);
+            _isWorkerThreadRunning = true;
+            _workerThread = new Thread(WorkerLoop);
+            _workerThread.Start();
         }
 
         public void SendRequest(IRequest request)
@@ -134,21 +131,22 @@ namespace ZeroNsq.Internal
             
             DispatchCls();
 
+            _isWorkerThreadRunning = false;
+
             if (_workerCancellationTokenSource != null)
             {
                 _workerCancellationTokenSource.Cancel();
                 _workerCancellationTokenSource.Dispose();
                 _workerCancellationTokenSource = null;
-
-                try
-                {
-                    _workerTask.Wait(TimeSpan.FromSeconds(3));                    
-                    _workerTask.Dispose();
-                }
-                catch { }
-
-                _workerTask = null;
             }
+
+            try
+            {
+                _workerThread.Join();
+            }
+            catch { }
+
+            _workerThread = null;
 
             if (_connectionResource != null)
             {
@@ -170,8 +168,11 @@ namespace ZeroNsq.Internal
             try
             {
                 LogProvider.Current.Debug("NsqdConnection: Advise CLS to daemon host");
+                
                 // ignore all errors for this command.
                 _connectionResource.WriteBytes(Commands.CLS);
+
+                // give enough time for the server to respond
                 Thread.Sleep(TimeSpan.FromSeconds(1));
             }
             catch { }
@@ -257,17 +258,17 @@ namespace ZeroNsq.Internal
                     frame = _connectionResource.ReadFrame();
                 }
                 catch (ObjectDisposedException)
-                {
+                {   
                     break;
                 }
                 catch (SocketException ex)
-                {   
+                {
                     _workerLoopException = ex;
                     break;
                 }
                 catch (ConnectionException ex)
                 {
-                    Close();                    
+                    Close();
                     _workerLoopException = ex;
                     break;
                 }
@@ -281,6 +282,8 @@ namespace ZeroNsq.Internal
                 Thread.Sleep(DefaultThreadSleepTime);
             }
 
+            _isWorkerThreadRunning = false;
+            _isIdentified = false;
             LogProvider.Current.Warn("NsqdConnection worker loop terminated. Connection is idle.");
         }
 
@@ -377,12 +380,6 @@ namespace ZeroNsq.Internal
             {
                 if (conn.IsConnected) return;
             }
-
-            if (conn._workerTask != null)
-            {
-                conn._workerTask.Dispose();
-                conn._workerTask = null;
-            }
             
             conn.Close();
 
@@ -394,24 +391,6 @@ namespace ZeroNsq.Internal
         {
             if (!instance.IsConnected)
             {
-                if (instance._workerTask != null && instance._workerTask.IsFaulted)
-                {
-                    var knownErrors = instance._workerTask.Exception.InnerExceptions
-                        .Where(error => error is BaseException)
-                        .Select(x => x.Message)
-                        .ToArray();
-
-                    if (knownErrors.Any())
-                    {
-                        string message = string.Join(";", knownErrors);
-                        string errorMessage = "One or more errors occurred. " + message;
-                        LogProvider.Current.Error(errorMessage);
-                        throw new ConnectionException(errorMessage);
-                    }
-
-                    throw instance._workerTask.Exception.Flatten();
-                }
-
                 if (instance._workerLoopException != null)
                 {
                     throw instance._workerLoopException;

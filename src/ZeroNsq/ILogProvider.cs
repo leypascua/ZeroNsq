@@ -40,9 +40,12 @@ namespace ZeroNsq
 
     public class LogProvider : ILogProvider
     {
+        private readonly static ILogProvider TraceLogProvider = new LogProvider();
         private static Func<ILogProvider> Factory = () => Default;
 
         public readonly static ILogProvider Default = NullLogProvider.Instance;
+
+        private LogProvider() { }
 
         public static ILogProvider Current
         {
@@ -123,6 +126,12 @@ namespace ZeroNsq
             public Configuration UseDefault()
             {
                 Use(() => LogProvider.Default);
+                return this;
+            }
+
+            public Configuration UseTrace()
+            {
+                Use(() => LogProvider.TraceLogProvider);
                 return this;
             }
 

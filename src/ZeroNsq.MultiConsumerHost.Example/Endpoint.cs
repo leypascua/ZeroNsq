@@ -51,7 +51,7 @@ namespace ZeroNsq.MultiConsumerHost.Example
 
         private void HandleError(ConnectionErrorContext errorContext)
         {
-            EnqueueMessage("[{0}@{1}] Error Occurred: {2}", _channelName, _topicName, errorContext.ToString());
+            EnqueueMessage("[{0}@{1}] Error Occurred: {2}", _channelName, _topicName, errorContext.Error.ToString());
         }
 
         private void HandleMessage(IMessageContext context)

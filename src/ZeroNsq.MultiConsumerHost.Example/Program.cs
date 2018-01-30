@@ -12,6 +12,8 @@ namespace ZeroNsq.MultiConsumerHost.Example
 
         static void Main(string[] args)
         {
+            LogProvider.Configure().UseTrace();
+
             // Usage:
             // ConsumerHost {topic} {# of instances}
             //  example:
