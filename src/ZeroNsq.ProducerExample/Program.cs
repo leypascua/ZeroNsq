@@ -15,7 +15,7 @@ namespace ZeroNsq.ProducerExample
 
 #if DEBUG
             LogProvider.Configure()
-                .UseDefault();
+                .UseNull();
 #endif      
 
             using (IPublisher publisher = Publisher.CreateInstance(connectionString))

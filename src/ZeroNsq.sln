@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZeroNsq.ProducerExample", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZeroNsq.ConsumerExample", "ZeroNsq.ConsumerExample\ZeroNsq.ConsumerExample.csproj", "{8E80781C-3CF6-4858-8F52-608D4EDFEEA6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeroNsq.MultiConsumerHost.Example", "ZeroNsq.MultiConsumerHost.Example\ZeroNsq.MultiConsumerHost.Example.csproj", "{15F0FAA1-CF9F-49B1-86A1-885FF8B2C215}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,6 +37,10 @@ Global
 		{8E80781C-3CF6-4858-8F52-608D4EDFEEA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8E80781C-3CF6-4858-8F52-608D4EDFEEA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8E80781C-3CF6-4858-8F52-608D4EDFEEA6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15F0FAA1-CF9F-49B1-86A1-885FF8B2C215}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15F0FAA1-CF9F-49B1-86A1-885FF8B2C215}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15F0FAA1-CF9F-49B1-86A1-885FF8B2C215}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15F0FAA1-CF9F-49B1-86A1-885FF8B2C215}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -42,6 +48,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{E8A54C0B-BEC1-441B-9198-5CCDF9809DBB} = {F9390AD3-7EF9-439E-A494-FB856DB3764A}
 		{8E80781C-3CF6-4858-8F52-608D4EDFEEA6} = {F9390AD3-7EF9-439E-A494-FB856DB3764A}
+		{15F0FAA1-CF9F-49B1-86A1-885FF8B2C215} = {F9390AD3-7EF9-439E-A494-FB856DB3764A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {53747271-AD2F-4D53-988C-10FA909C4CC8}
