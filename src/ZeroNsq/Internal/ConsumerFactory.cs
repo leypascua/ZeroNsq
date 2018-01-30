@@ -33,7 +33,7 @@ namespace ZeroNsq.Internal
             }
             catch (AggregateException ex)
             {
-                throw ex.InnerException;
+                throw new Exception(ex.InnerException.ToString());
             }
         }
 
@@ -99,6 +99,8 @@ namespace ZeroNsq.Internal
 
         private void IncludeFrom(IEnumerable<DnsEndPoint> nsqdEndpoints, IDictionary<string, INsqConnection> connections)
         {
+            if (nsqdEndpoints == null || !nsqdEndpoints.Any()) return;
+
             foreach (DnsEndPoint endpoint in nsqdEndpoints)
             {
                 string connectionId = NsqConnectionProxy.GenerateId(endpoint.Host, endpoint.Port);

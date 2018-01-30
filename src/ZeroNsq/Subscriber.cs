@@ -77,6 +77,12 @@ namespace ZeroNsq
         /// <returns>A subscriber instance</returns>
         public static ISubscriber CreateInstance(string topicName, string channelName, SubscriberOptions options, CancellationTokenSource cancellationTokenSource)
         {
+            if (options.Nsqd == null || options.Nsqd.Length == 0 || 
+                options.Lookupd == null || options.Lookupd.Length == 0)
+            {
+                throw new ArgumentException("NSQD or LOOKUPD instances are required.");
+            }
+
             return new Subscriber(topicName.EnforceValidNsqName(), channelName.EnforceValidNsqName(), options, cancellationTokenSource ?? new CancellationTokenSource());
         }
 
