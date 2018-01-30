@@ -13,28 +13,26 @@ Usage
 
 ### Publishing Messages
 
-var connectionString = "nsqd=http://127.0.0.1:4151;";
+    var connectionString = "nsqd=http://127.0.0.1:4151;";
 
-using (IPublisher publisher = Publisher.CreateInstance(connectionString))
-{
-    publisher.Publish(
-        
-        ## "topic-name", "message contents");
-}
+    using (IPublisher publisher = Publisher.CreateInstance(connectionString))
+    {
+        publisher.Publish("topic-name", "message contents");
+    }
 
 ### Subscribing to Messages
 
-var connectionString = "nsqd=tcp://127.0.0.1:4150;";
+    var connectionString = "nsqd=tcp://127.0.0.1:4150;";
 
-using (ISubscriber subscriber = Subscriber.CreateInstance("topic-name", "topic-name-channel", connectionString))
-{
-    subscriber
-        .OnMessageReceived(ctx => ExecuteMessageHandler(ctx))
-        .OnConnectionError(err => LogError(err))
-        .Start();
+    using (ISubscriber subscriber = Subscriber.CreateInstance("topic-name", "topic-name-channel", connectionString))
+    {
+        subscriber
+            .OnMessageReceived(ctx => ExecuteMessageHandler(ctx))
+            .OnConnectionError(err => LogError(err))
+            .Start();
 
-    // wait for connections...
-}
+        // wait for connections...
+    }
 
 
 License
