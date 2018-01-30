@@ -11,7 +11,7 @@ namespace ZeroNsq.ConsumerExample
 
         static void Main(string[] args)
         {
-            string topicName = "ZeroNsq.SimpleExample.Program";
+            string topicName = args.Length == 0 ? "ZeroNsq.SimpleExample.Program" : args[0];
             string channelName = topicName + ".Channel";
             string connectionString = string.Format("nsqd=tcp://{0}:4150;", Localhost);
 
@@ -23,6 +23,7 @@ namespace ZeroNsq.ConsumerExample
                     .Start();
 
                 Console.WriteLine("Press [ctrl + c] to terminate.");
+                Console.WriteLine("Subscribed to topic: " + topicName);
 
                 resetEvent.Wait();
 
