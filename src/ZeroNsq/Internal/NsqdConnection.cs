@@ -81,7 +81,12 @@ namespace ZeroNsq.Internal
 
                 if (_receivedFramesQueue.IsEmpty)
                 {
-                    _frameReceivedResetEvent.Wait(TimeSpan.FromSeconds(10));
+                    if (!_frameReceivedResetEvent.IsSet)
+                    {
+                        _frameReceivedResetEvent.Reset();
+                    }
+                    
+                    _frameReceivedResetEvent.Wait();
                 }
 
                 if (_receivedFramesQueue.Count > 0)
@@ -167,7 +172,7 @@ namespace ZeroNsq.Internal
                 LogProvider.Current.Debug("NsqdConnection: Advise CLS to daemon host");
                 // ignore all errors for this command.
                 _connectionResource.WriteBytes(Commands.CLS);
-                Thread.Sleep(TimeSpan.FromSeconds(2));
+                Thread.Sleep(TimeSpan.FromSeconds(1));
             }
             catch { }
         }
