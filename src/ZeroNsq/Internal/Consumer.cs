@@ -50,7 +50,16 @@ namespace ZeroNsq.Internal
             try
             {
                 Connection.OnMessageReceived(msg => {
-                    ExecuteHandler(channelName, callback, msg, connectionErrorCallback);
+                    ExecuteHandler(new HandlerExecutionContext
+                    {
+                        Connection = Connection,
+                        Options = _options,
+                        TopicName = _topicName,
+                        ChannelName = channelName,
+                        MessageReceivedCallback = callback,
+                        Message = msg,
+                        ErrorCallback = connectionErrorCallback
+                    });
                 });
             
                 lock (_connectionLock)
@@ -102,83 +111,70 @@ namespace ZeroNsq.Internal
             }
         }
 
-        private void ExecuteHandler(string channelName, Action<IMessageContext> callback, Message msg, Action<ConnectionErrorContext> errorCallback = null)
+        private void ExecuteHandler(HandlerExecutionContext handlerContext)
         {
-            bool isSingleThreaded = _options.MaxInFlight == 1;
-            IMessageContext context = CreateContext(msg, channelName);
+            IMessageContext msgContext = handlerContext.CreateMessageContext();
 
-            if (isSingleThreaded)
+            var handlerTask = Task.Factory.StartNew(
+                () => ExecuteCallback(msgContext, handlerContext),
+                _cancellationToken,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Current
+            );
+
+            EnqueueHandlerTask(handlerTask, handlerContext);
+        }
+
+        private void EnqueueHandlerTask(Task handlerTask, HandlerExecutionContext handlerContext)
+        {
+            _runningTasks.Add(handlerTask);
+
+            while (MaxAllowableWorkerThreadsActive(_runningTasks, handlerContext.Options.MaxInFlight))
             {
-                ExecuteCallback(context, callback, errorCallback, Connection);
+                Task.WaitAny(_runningTasks.ToArray());
             }
-            else
+
+            var completedTasks = _runningTasks.Where(t => t.IsCompleted).ToList();
+            foreach (var ct in completedTasks)
             {
-                ExecuteAsynchronously(context, callback, errorCallback);
+                ct.Dispose();
+                _runningTasks.Remove(ct);
             }
         }
 
-        private void ExecuteCallback(IMessageContext messageContext, Action<IMessageContext> callback, Action<ConnectionErrorContext> errorCallback, INsqConnection conn)
+        private void ExecuteCallback(IMessageContext msgContext, HandlerExecutionContext handlerContext)
         {
             try
             {
                 LogProvider.Current.Debug("Executing consumer callback");
-                callback(messageContext);
+                handlerContext.MessageReceivedCallback(msgContext);
             }
             catch (Exception ex)
             {
-                LogProvider.Current.Error(ex.ToString());
+                LogProvider.Current.Error("Consumer exception caught: " + ex.ToString());
 
-                if (errorCallback != null)
+                if (handlerContext.ErrorCallback != null)
                 {
-                    errorCallback(new ConnectionErrorContext(conn, ex));
+                    handlerContext.ErrorCallback(new ConnectionErrorContext(handlerContext.Connection, ex));
                 }
 
                 bool isKnownException = ex is BaseException;
                 if (!isKnownException)
                 {
                     // not caused by ZeroNsq. Stop incoming messages from flowing.
-                    LogProvider.Current.Warn("Unknown error detected. Advising RDY 0 to daemon.");
+                    LogProvider.Current.Fatal("Unknown error detected. Advising RDY 0 to daemon.");
                     AdviseReady(0);
                 }
             }
         }
 
-        private void ExecuteAsynchronously(IMessageContext context, Action<IMessageContext> callback, Action<ConnectionErrorContext> errorCallback)
-        {   
-            var callbackTask = Task.Factory.StartNew(
-                s => ExecuteCallback(context, callback, errorCallback, Connection),
-                TaskCreationOptions.LongRunning,
-                _cancellationToken);
-
-            if (!callbackTask.IsCompleted)
-            {
-                _runningTasks.Add(callbackTask);
-            }
-        }
-
-        private IMessageContext CreateContext(Message msg, string channelName)
+        private static bool MaxAllowableWorkerThreadsActive(IEnumerable<Task> runningTasks, int maxInFlight)
         {
-            lock (_contextLock)
-            {
-                while (true)
-                {
-                    int activeTaskCount = _runningTasks.Count(t => !t.IsCompleted);
+            int activeTaskCount = runningTasks.Count(t => !t.IsCompleted);
 
-                    if (activeTaskCount <= _options.MaxInFlight) break;
+            if (activeTaskCount == 0) return false;
 
-                    LogProvider.Current.Info(string.Format("Too many worker threads for channel [{0}] are running. Waiting for one to finish...", channelName));
-                    Thread.Sleep(TimeSpan.FromSeconds(1));
-                }
-
-                var completedTasks = _runningTasks.Where(t => t.IsCompleted).ToList();
-                foreach (var ct in completedTasks)
-                {
-                    ct.Dispose();
-                    _runningTasks.Remove(ct);
-                }
-            }
-
-            return new MessageContext(this, msg, _options, _topicName, channelName);
+            return activeTaskCount >= maxInFlight;
         }
 
         #region IDisposable members

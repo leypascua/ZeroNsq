@@ -4,13 +4,13 @@ namespace ZeroNsq.Internal
 {
     internal class MessageContext : IMessageContext
     {
-        private readonly Consumer _consumer;
+        private readonly INsqConnection _connection;
         private readonly SubscriberOptions _options;
         private readonly Message _internalMessage;
 
-        public MessageContext(Consumer consumer, Message msg, SubscriberOptions options, string topic, string channel)
+        public MessageContext(INsqConnection connection, Message msg, SubscriberOptions options, string topic, string channel)
         {
-            _consumer = consumer;
+            _connection = connection;
             _options = options;
             _internalMessage = msg;
             TopicName = topic;
@@ -25,7 +25,7 @@ namespace ZeroNsq.Internal
 
         public void Finish()
         {
-            _consumer.Connection.SendRequest(Commands.Finish(_internalMessage.Id));
+            _connection.SendRequest(Commands.Finish(_internalMessage.Id));
         }
 
         public void Requeue()
@@ -37,7 +37,7 @@ namespace ZeroNsq.Internal
                 ///TODO: Get this value from somewhere... 
                 int requeueDeferTimeout = 0;
 
-                _consumer.Connection.SendRequest(Commands.Requeue(_internalMessage.Id, requeueDeferTimeout));
+                _connection.SendRequest(Commands.Requeue(_internalMessage.Id, requeueDeferTimeout));
             }
             else
             {
@@ -48,7 +48,7 @@ namespace ZeroNsq.Internal
 
         public void Touch()
         {
-            _consumer.Connection.SendRequest(Commands.Touch(_internalMessage.Id));
+            _connection.SendRequest(Commands.Touch(_internalMessage.Id));
         }
     }
 }

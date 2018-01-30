@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
 using Xunit;
 using ZeroNsq.Internal;
 using ZeroNsq.Tests.Utils;
@@ -209,9 +212,67 @@ namespace ZeroNsq.Tests
             Assert.Equal(expectedErrorMessage, errorContext.Error.Message);
         }
 
+        [Fact]
+        public void ParallelMessageHandlingTest()
+        {
+            string topicName = "ParallelMessageHandling." + Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var opt = new SubscriberOptions { MaxInFlight = 3 };
+            double sleepTime = 1.5;
+            int expectedMessageCount = opt.MaxInFlight + 2;
+            double expectedSleepTime = (expectedMessageCount - opt.MaxInFlight) * sleepTime + sleepTime;
+            var resetEvent = new ManualResetEventSlim();
+
+            var receivedMessages = new ConcurrentBag<HandledMessageData>();
+
+            Action<IMessageContext> onMessageReceived = ctx =>
+            {
+                var receivedData = ctx.Message.Deserialize<HandledMessageData>();
+                receivedData.ThreadId = Thread.CurrentThread.ManagedThreadId.ToString();
+                receivedData.End = DateTime.UtcNow;
+                receivedMessages.Add(receivedData);
+
+                Thread.Sleep(TimeSpan.FromSeconds(sleepTime));
+                LogProvider.Current.Info("Finishing index " + receivedData.Index);
+                ctx.Finish();
+
+                if (receivedMessages.Count == expectedMessageCount)
+                {
+                    resetEvent.Set();
+                }
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8115))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
+            {
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+
+                Parallel.For(0, expectedMessageCount, idx =>
+                {
+                    var data = new HandledMessageData { Index = idx, Start = DateTime.UtcNow };
+                    publisher.PublishJson(topicName, data);
+                });
+
+                resetEvent.Wait(TimeSpan.FromSeconds(expectedSleepTime));
+            }
+
+            Assert.Equal(expectedMessageCount, receivedMessages.Count);
+            Assert.Equal(expectedMessageCount, receivedMessages.Select(x => x.ThreadId).Distinct().Count());
+        }
+
         private void OnConnectionError(ConnectionErrorContext ctx)
         {
             Trace.WriteLine(ctx.Error.ToString());
+        }
+
+        class HandledMessageData
+        {
+            public DateTime Start { get; set; }
+            public DateTime? End { get; set; }
+            public string ThreadId { get; set; }
+            public int Index { get; set; }
         }
     }
 }

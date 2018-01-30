@@ -289,6 +289,11 @@ namespace ZeroNsq.Internal
                         return;
                     }                
 
+                    if (frame.Type == FrameType.Error)
+                    {
+                        LogProvider.Current.Warn("Error frame received: " + frame.ToErrorCode());
+                    }
+
                     _receivedFramesQueue.Enqueue(frame);
                     _frameReceivedResetEvent.Set();
                     break;
