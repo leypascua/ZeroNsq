@@ -248,16 +248,21 @@ namespace ZeroNsq.Internal
 
                 try
                 {
+                    LogProvider.Current.Debug("NsqdConnection.WorkerLoop is waiting for a frame");
                     frame = _connectionResource.ReadFrame();
                 }
                 catch (ObjectDisposedException)
                 {
                     break;
                 }
+                catch (SocketException ex)
+                {   
+                    _workerLoopException = ex;
+                    break;
+                }
                 catch (ConnectionException ex)
                 {
-                    Close();
-                    //throw;
+                    Close();                    
                     _workerLoopException = ex;
                     break;
                 }
@@ -267,11 +272,11 @@ namespace ZeroNsq.Internal
 
                 OnFrameReceived(frame);
 
-                LogProvider.Current.Debug("NsqdConnection.WorkerLoop is sleeping.");
+                LogProvider.Current.Debug("NsqdConnection.WorkerLoop is sleeping for a while.");
                 Thread.Sleep(DefaultThreadSleepTime);
             }
 
-            LogProvider.Current.Info("NsqdConnection worker loop terminated.");
+            LogProvider.Current.Warn("NsqdConnection worker loop terminated. Connection is idle.");
         }
 
         private void OnFrameReceived(Frame frame)

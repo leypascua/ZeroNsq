@@ -50,7 +50,7 @@ namespace ZeroNsq.Internal
             lock (_connectionLock)
             {
                 _tcpClient = new TcpClient();
-
+                
                 try
                 {
                     LogProvider.Current.Debug(string.Format("Connecting to Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));

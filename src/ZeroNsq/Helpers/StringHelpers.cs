@@ -40,9 +40,9 @@ namespace ZeroNsq.Helpers
 
         public static string EnforceValidNsqName(this string input)
         {
-            if (string.IsNullOrEmpty(input)) throw new ArgumentException("Input is null or empty.");
+            input = (input ?? string.Empty).Trim();
 
-            input = input.Trim();
+            if (string.IsNullOrEmpty(input)) throw new ArgumentException("Input is null or empty.");            
 
             if (input.Length > MaxNsqNameLength)
             {

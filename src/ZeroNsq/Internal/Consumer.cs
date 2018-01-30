@@ -70,12 +70,13 @@ namespace ZeroNsq.Internal
                         Connection.Connect();
                         Connection.SendRequest(new Subscribe(_topicName, channelName));
                         AdviseReady(_options.MaxInFlight);
+                        LogProvider.Current.Info(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, channelName));
                     }
                 }
             }
             catch (Exception ex)
             {
-                LogProvider.Current.Error(string.Format("Consumer Error occurred. ", ex.ToString()));
+                LogProvider.Current.Fatal(string.Format("Consumer Error occurred. {0}", ex.ToString()));
 
                 if (connectionErrorCallback != null)
                 {

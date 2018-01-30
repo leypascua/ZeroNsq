@@ -81,14 +81,24 @@ namespace ZeroNsq.Internal
 
         private async Task<int> ReadFrameLengthAsync()
         {   
-            await _stream.ReadAsync(FrameSizeBuffer, 0, Frame.FrameSizeLength, _cancellationTokenSource.Token);
+            int bytesRead = await _stream.ReadAsync(FrameSizeBuffer, 0, Frame.FrameSizeLength, _cancellationTokenSource.Token);
+            ThrowOnZeroBytesRead(bytesRead);
             return ToInt32(FrameSizeBuffer);
         }
 
         private async Task<FrameType> ReadFrameTypeAsync()
         {
-            await _stream.ReadAsync(FrameTypeBuffer, 0, Frame.FrameTypeLength, _cancellationTokenSource.Token);
+            int bytesRead = await _stream.ReadAsync(FrameTypeBuffer, 0, Frame.FrameTypeLength, _cancellationTokenSource.Token);
+            ThrowOnZeroBytesRead(bytesRead);
             return (FrameType)ToInt32(FrameTypeBuffer);
+        }
+
+        private static void ThrowOnZeroBytesRead(int bytesRead)
+        {
+            if (bytesRead == 0)
+            {
+                throw new SocketException("Client connection is unexpectedly dropped by remote host.");
+            }
         }
 
         private static int ToInt32(byte[] buffer)

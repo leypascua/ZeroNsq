@@ -32,6 +32,11 @@ namespace ZeroNsq.Internal
 
         public async Task PublishAsync(string topic, byte[] message)
         {
+            if (message == null || message.Length == 0)
+            {
+                throw new InvalidOperationException("Message cannot be empty.");
+            }
+
             using (var ms = new MemoryStream(message))
             {
                 await PublishAsync(topic, ms);
@@ -51,6 +56,12 @@ namespace ZeroNsq.Internal
 
         public void Publish(string topic, string utf8String)
         {
+            string msg = (utf8String ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(msg))
+            {
+                throw new InvalidOperationException("utf8String cannot be empty.");
+            }
+
             try
             {
                 using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(utf8String)))
@@ -66,6 +77,11 @@ namespace ZeroNsq.Internal
 
         public void PublishJson<TMessage>(string topic, TMessage message) where TMessage : class, new()
         {
+            if (message == default(TMessage))
+            {
+                throw new InvalidOperationException("Message cannot be empty.");
+            }
+
             string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
             Publish(topic, json);
         }
