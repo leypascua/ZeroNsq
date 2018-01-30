@@ -10,7 +10,12 @@ namespace ZeroNsq.ProducerExample
         {
             string topicName = "ZeroNsq.SimpleExample.Program";
             string connectionString = string.Format("nsqd=http://{0}:4151;", Localhost);
-                        
+
+#if DEBUG
+            LogProvider.Configure()
+                .UseDefault();
+#endif      
+
             using (IPublisher publisher = Publisher.CreateInstance(connectionString))
             {
                 Console.WriteLine("Type a message then hit [enter] to publish.");
