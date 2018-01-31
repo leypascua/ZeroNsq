@@ -8,18 +8,22 @@ namespace ZeroNsq.ProducerExample
 
         static void Main(string[] args)
         {
-            string topicName = "ZeroNsq.SimpleExample.Program";
+            // try to get the topic name from CLI arguments
+            string topicName = args.Length == 0 ? "ZeroNsq.SimpleExample.Program" : args[0];
+
             string connectionString = string.Format("nsqd=http://{0}:4151;", Localhost);
 
 #if DEBUG
             LogProvider.Configure()
-                .UseDefault();
+                .UseNull();
 #endif      
 
             using (IPublisher publisher = Publisher.CreateInstance(connectionString))
             {
                 Console.WriteLine("Type a message then hit [enter] to publish.");
-                Console.WriteLine("Press [ctrl + c] to terminate.");
+                Console.WriteLine("Press [ctrl + c] or type 'exit' to terminate.");
+                Console.WriteLine("Producing topic: " + topicName);
+                Console.WriteLine();
 
                 while (true)
                 {
