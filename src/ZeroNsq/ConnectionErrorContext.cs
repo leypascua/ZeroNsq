@@ -12,10 +12,11 @@ namespace ZeroNsq
         /// </summary>
         /// <param name="connection">The connection</param>
         /// <param name="error">The exception</param>
-        public ConnectionErrorContext(INsqConnection connection, Exception error)
+        public ConnectionErrorContext(INsqConnection connection, Exception error, string channelName)
         {
             Connection = connection;
             Error = error;
+            ChannelName = channelName;
         }
 
         /// <summary>
@@ -27,6 +28,11 @@ namespace ZeroNsq
         /// Gets the caught exception
         /// </summary>
         public Exception Error { get; private set; }
+
+        /// <summary>
+        /// Gets the name of the channel which owns the connection that caused the error.
+        /// </summary>
+        public string ChannelName { get; private set; }
 
         public override string ToString()
         {

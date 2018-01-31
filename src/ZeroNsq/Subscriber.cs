@@ -183,7 +183,7 @@ namespace ZeroNsq
 
                     if (_onConnectionErrorCallback != null)
                     {
-                        _onConnectionErrorCallback(new ConnectionErrorContext(consumer.Connection, ex));
+                        _onConnectionErrorCallback(new ConnectionErrorContext(consumer.Connection, ex, _channelName));
                     }
 
                     if (throwConnectionException)
