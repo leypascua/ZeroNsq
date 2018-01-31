@@ -22,9 +22,10 @@ namespace ZeroNsq.Internal
         private bool _isWorkerThreadRunning = false;
         private CancellationTokenSource _workerCancellationTokenSource;        
         private Action<Message> _onMessageReceivedCallback = msg => { };
+        private Action _onHeartbeatRespondedCallback;
         private bool _isIdentified = false;
         private bool _disposedValue = false; // To detect redundant calls         
-        private BaseException _workerLoopException;
+        private BaseException _workerLoopException;        
 
         public NsqdConnection(string host, int port, ConnectionOptions options = null) 
             : this(new DnsEndPoint(host, port), options) { }
@@ -125,6 +126,16 @@ namespace ZeroNsq.Internal
             return this;
         }
 
+        public INsqConnection OnHeartbeatResponded(Action callback)
+        {
+            if (callback != null)
+            {
+                _onHeartbeatRespondedCallback = callback;
+            }
+
+            return this;
+        }
+
         public void Close()
         {
             if (!IsConnected) return;
@@ -142,7 +153,10 @@ namespace ZeroNsq.Internal
 
             try
             {
-                _workerThread.Join();
+                if (!_workerThread.Join(TimeSpan.FromSeconds(3)))
+                {
+                    _workerThread.Abort();
+                }
             }
             catch { }
 
@@ -277,9 +291,6 @@ namespace ZeroNsq.Internal
                 if (frame == null) break;
 
                 OnFrameReceived(frame);
-
-                LogProvider.Current.Debug("NsqdConnection.WorkerLoop is sleeping for a while.");
-                Thread.Sleep(DefaultThreadSleepTime);
             }
 
             _isWorkerThreadRunning = false;
@@ -299,6 +310,12 @@ namespace ZeroNsq.Internal
                     {
                         LogProvider.Current.Debug("Heartbeat request received. Responding with NOP");
                         SendRequest(Commands.NOP);
+
+                        if (_onHeartbeatRespondedCallback != null)
+                        {
+                            _onHeartbeatRespondedCallback();
+                        }
+
                         return;
                     }                
 

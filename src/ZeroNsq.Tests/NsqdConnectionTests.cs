@@ -24,15 +24,18 @@ namespace ZeroNsq.Tests
         [Fact]
         public void RespondToHeartbeatTest()
         {
+            bool isHeartbeatResponded = false;
+
             var options = new ConnectionOptions
             {
-                HeartbeatIntervalInSeconds = 3
+                HeartbeatIntervalInSeconds = 2
             };
 
             using (var nsqd = Nsqd.StartLocal(9111))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, options))
             {
-                conn.Connect();
+                conn.OnHeartbeatResponded(() => isHeartbeatResponded = true)
+                    .Connect();
 
                 // force idle time
                 Thread.Sleep(TimeSpan.FromSeconds((options.HeartbeatIntervalInSeconds.Value * 2) + 1));
@@ -40,11 +43,13 @@ namespace ZeroNsq.Tests
                 // both requests should be alive.
                 conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));
                 Assert.Throws<RequestException>(() => conn.SendRequest(new InvalidRequest()));
+
+                Assert.True(isHeartbeatResponded);
             }   
         }
 
         [Fact]
-        public void ConcurrentPublishingTest()
+        public void ConcurrentSendRequestTest()
         {
             using (var nsqd = Nsqd.StartLocal(9112))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, ConnectionOptions.Default))
@@ -85,7 +90,7 @@ namespace ZeroNsq.Tests
 
             using (var nsqd = Nsqd.StartLocal(9114))
             using (var subscriber = new NsqdConnection(nsqd.Host, nsqd.Port))
-            using (var publisher = new NsqdConnection(nsqd.Host, nsqd.Port))
+            using (var publisher = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
             {
                 subscriber.OnMessageReceived(msg =>
                 {
@@ -97,12 +102,11 @@ namespace ZeroNsq.Tests
                 subscriber.Connect();
                 subscriber.SendRequest(new Subscribe(Nsqd.DefaultTopicName, Nsqd.DefaultTopicName));
 
-                publisher.Connect();
-                publisher.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));
+                publisher.Publish(Nsqd.DefaultTopicName, "Hello World");
 
                 subscriber.SendRequest(new Ready(1));
 
-                resetEvent.Wait(TimeSpan.FromSeconds(5));
+                resetEvent.Wait();
             }
 
             Assert.NotEqual(0, receivedMessages);
