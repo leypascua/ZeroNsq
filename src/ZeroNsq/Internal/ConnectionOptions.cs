@@ -5,7 +5,7 @@ namespace ZeroNsq.Internal
     public class ConnectionOptions
     {
         public const int DefaultTcpPort = 4150;
-        const int DefaultMaxClientReconnectionAttempts = 3;
+        private readonly static int DefaultMaxClientReconnectionAttempts = int.MaxValue;
         const int DefaultInitialBackoffTimeInSeconds = 8;
         const int DefaultHeartbeatIntervalInSeconds = 30;
         const int DefaultMessageTimeoutInSeconds = 120;
@@ -47,8 +47,7 @@ namespace ZeroNsq.Internal
             {
                 opt.MessageTimeout = DefaultMessageTimeoutInSeconds;
             }
-
-            if (opt.MaxClientReconnectionAttempts == 0) opt.MaxClientReconnectionAttempts = DefaultMaxClientReconnectionAttempts;
+            
             if (opt.InitialBackoffTimeInSeconds == 0) opt.InitialBackoffTimeInSeconds = DefaultInitialBackoffTimeInSeconds;
 
             return opt;
