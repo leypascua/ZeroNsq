@@ -21,7 +21,13 @@ namespace ZeroNsq
         /// <returns>An IPublisher instance</returns>
         public static IPublisher CreateInstance(string connectionString)
         {
-            string uriString = ConnectionStringParser.GetMatch(ConnectionStringParser.NsqdKey, connectionString, DefaultConnectionString);
+            string uriString = ConnectionStringParser.GetMatch(ConnectionStringParser.NsqdKey, connectionString);
+
+            if (string.IsNullOrEmpty(uriString))
+            {
+                throw new FormatException("NSQD is undefined on input: " + connectionString);
+            }
+
             var uri = new Uri(uriString);
             return CreateInstance(uri);
         }
