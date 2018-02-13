@@ -21,7 +21,13 @@ namespace ZeroNsq
         /// <returns>An IPublisher instance</returns>
         public static IPublisher CreateInstance(string connectionString)
         {
-            string uriString = ConnectionStringParser.GetMatch(ConnectionStringParser.NsqdKey, connectionString);
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new ArgumentException("A non-empty connectionString is required.");
+            }
+
+            // A publisher only needs a single NSQD endpoint. Return the first one that we can get.
+            string uriString = ConnectionStringParser.GetMatch(ConnectionStringParser.NsqdKey, (connectionString ?? string.Empty).Trim());
 
             if (string.IsNullOrEmpty(uriString))
             {
