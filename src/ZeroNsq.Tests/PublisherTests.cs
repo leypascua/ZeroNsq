@@ -10,6 +10,15 @@ namespace ZeroNsq.Tests
         static readonly string Message = "Hello World";
 
         [Fact]
+        public void CreateInstanceThrowsExceptionOnInvalidNsqdTest()
+        {
+            Assert.Throws<FormatException>(() =>
+            {
+                Publisher.CreateInstance("Host=127.0.0.1:4151;");
+            });
+        }
+
+        [Fact]
         public void CreateTcpInstanceByConnectionStringTest()
         {
             string connectionString = "nsqd=tcp://127.0.0.1:4150;";

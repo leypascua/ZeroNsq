@@ -7,6 +7,8 @@ using System.Linq;
 using Xunit;
 using ZeroNsq.Internal;
 using ZeroNsq.Tests.Utils;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace ZeroNsq.Tests
 {
@@ -213,6 +215,48 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
+        public void PublishSubscribeJsonTest()
+        {
+            string topicName = "PublishSubscribeJson." + Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var resetEvent = new ManualResetEventSlim();
+            var opt = new SubscriberOptions();
+            var expected = new Foo
+            {
+                Id = Guid.NewGuid(),
+                Data = new HandledMessageData
+                {
+                    Start = DateTime.UtcNow,
+                    End = DateTime.UtcNow
+                }
+            };
+
+            Foo result = null;
+
+            Action<IMessageContext> onMessageReceived = ctx =>
+            {
+                string receivedJson = ctx.Message.ToUtf8String();
+                result = JsonConvert.DeserializeObject<Foo>(receivedJson);
+                resetEvent.Set();
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8116))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
+            {
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+
+                string json = JsonConvert.SerializeObject(expected);
+                publisher.Publish(topicName, json);
+                resetEvent.Wait();
+
+                Assert.Equal(expected.Id, result.Id);
+                Assert.True(result.Data is JObject);
+            }
+        }
+
+        [Fact]
         public void ParallelMessageHandlingTest()
         {
             string topicName = "ParallelMessageHandling." + Guid.NewGuid().ToString();
@@ -268,6 +312,12 @@ namespace ZeroNsq.Tests
         private void OnConnectionError(ConnectionErrorContext ctx)
         {
             Trace.WriteLine(ctx.Error.ToString());
+        }
+
+        class Foo
+        {
+            public Guid Id { get; set; }
+            public object Data { get; set; }
         }
 
         class HandledMessageData

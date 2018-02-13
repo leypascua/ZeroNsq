@@ -135,7 +135,7 @@ namespace ZeroNsq.Internal
                 _networkStream = null;                
 
                 _tcpClient.Close();
-                _tcpClient.Dispose();
+                (_tcpClient as IDisposable).Dispose();
                 _tcpClient = null;
             }
         }

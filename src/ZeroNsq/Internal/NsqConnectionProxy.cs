@@ -108,9 +108,12 @@ namespace ZeroNsq.Internal
 
         private void AttemptRetry(Exception error, Action<INsqConnection> callback)
         {
-            if (ReconnectionAttempts > _options.MaxClientReconnectionAttempts)
+            if (_options.MaxClientReconnectionAttempts > 0)
             {
-                throw error;
+                if (ReconnectionAttempts > _options.MaxClientReconnectionAttempts)
+                {
+                    throw error;
+                }
             }
 
             ReconnectionAttempts += 1;

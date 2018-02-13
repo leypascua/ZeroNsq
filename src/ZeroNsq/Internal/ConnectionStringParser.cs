@@ -24,7 +24,17 @@ namespace ZeroNsq.Internal
             string expression = key + CONFIG_REGEX;
             MatchCollection matches = Regex.Matches(source, @expression, RegexOptions.IgnoreCase);
 
-            if (matches.Count == 0) yield break;
+            if (matches.Count == 0)
+            {
+                if (!string.IsNullOrEmpty(fallback))
+                {
+                    yield return fallback;
+                }
+                else
+                {
+                    yield break;
+                }
+            }
 
             foreach (Match match in matches)
             {
