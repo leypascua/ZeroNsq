@@ -34,6 +34,10 @@ namespace ZeroNsq
         /// </summary>
         public string ChannelName { get; private set; }
 
+        /// <summary>
+        /// Returns the string equivalent of the object instance
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return Error.ToString();
