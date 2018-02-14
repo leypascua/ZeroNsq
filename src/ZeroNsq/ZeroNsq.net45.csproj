@@ -16,8 +16,8 @@
     <RepositoryType>Git</RepositoryType>
     <NeutralLanguage>en-PH</NeutralLanguage>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <AssemblyName>ZeroNsq.net45</AssemblyName>
     <RootNamespace>ZeroNsq</RootNamespace>
+	<AssemblyName>ZeroNsq.net45</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

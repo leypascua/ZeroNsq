@@ -83,7 +83,7 @@ namespace ZeroNsq.Tests
             using (var pub = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
             {
                 string topicName = "Test.Topic" + new string('z', 64);
-                Assert.Throws<ArgumentException>(() => pub.Publish(topicName, new byte[0]));
+                Assert.Throws<ArgumentException>(() => pub.Publish(topicName, Guid.NewGuid().ToString()));
             }
         }
 
