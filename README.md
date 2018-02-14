@@ -62,44 +62,44 @@ Usage
 
     	try 
     	{
-    		// Message can be deserialized into JSON or something else.
+            // Message can be deserialized into JSON or something else.
     	    string utf8String = ctx.Message.ToUtf8String();
 
             int iteration = 0;
             while (iteration < 10)
             {
-            	if (iteration == 5)
+                if (iteration == 5)
             	{
-            		// Avoid message timeout.
+                    // Avoid message timeout.
                     ctx.Touch();
-            	}
+                }
 
-            	Thread.Sleep(1000);
-            	iteration++;
+                // Simulate a long-running process
+                Thread.Sleep(1000);
+                iteration++;
             }
-
 
             Assert.Equal("message contents", utf8String);
 
             // Tell NSQ that we're done with the message.
-    		ctx.Finish();
-    	}
-    	catch 
-    	{
-    		if (ctx.Message.Attempts <= MaxMessageAttempts)
-    		{
-    			// requeue the message
+    	    ctx.Finish();
+        }
+        catch 
+        {
+    	    if (ctx.Message.Attempts <= MaxMessageAttempts)
+    	    {
+    		    // requeue the message
                 ctx.Requeue();
-    		}
+    	    }
             else 
             {
-            	// Do something to handle the message, maybe put to 
-            	// a custom dead letter queue.
+                // Do something to handle the message, maybe put to 
+                // a custom dead letter queue.
             	
-            	// Throw-out the message from the queue
-            	ctx.Finish();
+                // Throw-out the message from the queue
+                ctx.Finish();
             }
-    	}
+        }
     }
 
 
