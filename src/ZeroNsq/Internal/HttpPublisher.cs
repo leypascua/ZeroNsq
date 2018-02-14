@@ -34,7 +34,7 @@ namespace ZeroNsq.Internal
         {
             if (message == null || message.Length == 0)
             {
-                throw new InvalidOperationException("Message cannot be empty.");
+                throw new RequestException("Message cannot be empty.");
             }
 
             using (var ms = new MemoryStream(message))
