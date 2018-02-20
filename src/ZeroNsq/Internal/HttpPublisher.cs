@@ -22,7 +22,7 @@ namespace ZeroNsq.Internal
         {
             try
             {
-                PublishAsync(topic, message).Wait();
+                Task.Run(() => PublishAsync(topic, message)).Wait();                
             }
             catch (AggregateException ex)
             {
@@ -66,7 +66,7 @@ namespace ZeroNsq.Internal
             {
                 using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(utf8String)))
                 {
-                    PublishAsync(topic, ms).Wait();
+                    Task.Run(() => PublishAsync(topic, ms)).Wait();
                 }
             }
             catch (AggregateException ex)
@@ -92,6 +92,8 @@ namespace ZeroNsq.Internal
         {
             string requestUri = BuildUri(path, query);
             var response = await HttpClient.PostAsync(requestUri, content);
+
+            
 
             if (!response.IsSuccessStatusCode)
             {
