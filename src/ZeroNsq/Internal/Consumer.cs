@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,7 +59,7 @@ namespace ZeroNsq.Internal
                     }
                 };
 
-                Task.Run(() => StartAsync(channelName, asyncCallback, connectionErrorCallback, throwConnectionException)).Wait();
+                Task.Run(async () => await StartAsync(channelName, asyncCallback, connectionErrorCallback, throwConnectionException)).Wait();
             }
             catch (AggregateException ex)
             {
@@ -66,7 +67,7 @@ namespace ZeroNsq.Internal
             }
         }
 
-        public async void StartAsync(string channelName, Func<IMessageContext, Task> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
+        public async Task StartAsync(string channelName, Func<IMessageContext, Task> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
         {
             if (IsConnected) return;
 
@@ -105,7 +106,7 @@ namespace ZeroNsq.Internal
 
                 if (throwConnectionException && ex is ConnectionException)
                 {
-                    throw ex;
+                    throw;
                 }
             }
         }
@@ -147,39 +148,44 @@ namespace ZeroNsq.Internal
         private void ExecuteHandler(HandlerExecutionContext handlerContext)
         {
             IMessageContext msgContext = handlerContext.CreateMessageContext();
-            var handlerTask = ExecuteCallbackAsync(msgContext, handlerContext);
 
-            EnqueueHandlerTask(handlerTask, handlerContext);
-        }
-
-        private void EnqueueHandlerTask(Task handlerTask, HandlerExecutionContext handlerContext)
-        {
-            _runningTasks.Add(handlerTask);
-
-            while (MaxAllowableWorkerThreadsActive(_runningTasks, handlerContext.Options.MaxInFlight))
+            _runningTasks.Add(Task.Run(async () => await ExecuteCallbackAsync(msgContext, handlerContext)));
+                        
+            foreach (Task ct in _runningTasks.Where(t => t.IsCompleted).ToList())
             {
-                LogProvider.Current.Debug(string.Format("Max allowable workers (MaxInFlight={0}) exceeded. Waiting for a handler task to complete...", handlerContext.Options.MaxInFlight));
-                Task.WaitAny(_runningTasks.ToArray());
-            }
-
-            var completedTasks = _runningTasks.Where(t => t.IsCompleted).ToList();
-            foreach (var ct in completedTasks)
-            {
-                ct.Dispose();
+                try
+                {
+                    ct.Dispose();
+                }
+                catch { }
+                
                 _runningTasks.Remove(ct);
             }
         }
 
         private async Task ExecuteCallbackAsync(IMessageContext msgContext, HandlerExecutionContext handlerContext)
         {
+            int threadId = Thread.CurrentThread.ManagedThreadId;
+
             try
-            {
-                LogProvider.Current.Debug("Executing consumer callback");
+            {   
+                if (MaxAllowableWorkerThreadsActive(_runningTasks, handlerContext.Options.MaxInFlight))
+                {
+                    LogProvider.Current.Debug(string.Format("[T#{0}] Max allowable workers (MaxInFlight={1}) exceeded. Waiting for a handler task to complete...", 
+                        threadId, handlerContext.Options.MaxInFlight));
+
+                    Task.WaitAny(_runningTasks.ToArray());
+                }
+
+                LogProvider.Current.Debug(string.Format("[T#{0}] Executing consumer callback", threadId));
+                var stopWatch = Stopwatch.StartNew();
                 await handlerContext.MessageReceivedCallbackAsync(msgContext);
+                LogProvider.Current.Debug(string.Format("[T#{0}] Consumer callback execution completed after {1} seconds.", threadId, stopWatch.Elapsed.TotalSeconds));
+                stopWatch.Stop();
             }
             catch (Exception ex)
             {
-                LogProvider.Current.Error("Consumer exception caught: " + ex.ToString());
+                LogProvider.Current.Error(string.Format("[T#{0}] Consumer exception caught: {1}", threadId, ex.ToString()));
 
                 if (handlerContext.ErrorCallback != null)
                 {
@@ -190,19 +196,19 @@ namespace ZeroNsq.Internal
                 if (!isKnownException)
                 {
                     // not caused by ZeroNsq. Stop incoming messages from flowing.
-                    LogProvider.Current.Fatal("Unknown error detected. Advising RDY 0 to daemon.");
+                    LogProvider.Current.Fatal(string.Format("[T#{0}] Unknown error detected. Advising RDY 0 to daemon.", threadId));
                     await AdviseReadyAsync(0);
                 }
             }
         }
 
         private static bool MaxAllowableWorkerThreadsActive(IEnumerable<Task> runningTasks, int maxInFlight)
-        {
+        {   
             int activeTaskCount = runningTasks.Count(t => !t.IsCompleted);
 
             if (activeTaskCount == 0) return false;
 
-            return activeTaskCount >= maxInFlight;
+            return activeTaskCount > maxInFlight;
         }
 
         #region IDisposable members

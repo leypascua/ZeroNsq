@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -294,6 +295,7 @@ namespace ZeroNsq.Internal
                 }
                 catch (AggregateException ex)
                 {
+                    LogProvider.Current.Debug("WorkerLoop Exception caught: " + ex.InnerException.Message);
                     throw ex.InnerException;
                 }
             }
@@ -301,6 +303,11 @@ namespace ZeroNsq.Internal
             _isWorkerThreadRunning = false;
             _isIdentified = false;
             LogProvider.Current.Warn("NsqdConnection worker loop terminated. Connection is idle.");
+
+            if (_workerLoopException != null)
+            {
+                LogProvider.Current.Debug("NsqdConnection.WorkerLoop Exception: " + _workerLoopException.Message);
+            }
         }
 
         private async Task OnFrameReceived(Frame frame)

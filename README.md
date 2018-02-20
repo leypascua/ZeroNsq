@@ -15,6 +15,9 @@ Usage
 ### Download for netstandard2.0 via NuGet
     Install-Package ZeroNsq
 
+### Download for net45 via NuGEt
+    Install-Package ZeroNsq.net45
+
 ### Connection strings
 
     // for publishers / producers:
@@ -34,9 +37,6 @@ Usage
     using (IPublisher publisher = Publisher.CreateInstance(connectionString))
     {
         publisher.Publish("topic-name", "message contents");
-        
-        // alternatively, async calls are possible
-        // await publisher.PublishAsync("topic-name", "message contents");
     }
 
 ### Subscribing to Messages
@@ -48,9 +48,6 @@ Usage
             .OnMessageReceived(ctx => ExecuteMessageHandler(ctx))
             .OnConnectionError(err => LogError(err))
             .Start();
-            
-        // alternatively, you may use an async message received handler
-        // subscriber.OnMessageReceivedAsync(async ctx => await ctx.FinishAsync());
     
         // wait for connections...
 }
@@ -65,10 +62,8 @@ Usage
         {
             // Message can be deserialized into JSON or something else.
             string utf8String = ctx.Message.ToUtf8String();
-            
-            Task longRunningTask = HandleMessageAsync(utf8String);
 
-            while (IsLongProcessRunning(longRunningTask))
+            while (IsLongProcessRunning(utf8String))
             {
                 // Avoid message timeout.
                 ctx.Touch();
