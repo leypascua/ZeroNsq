@@ -34,7 +34,6 @@ Usage
 ### Publishing Messages
 
     var connectionString = "nsqd=http://127.0.0.1:4151;";
-
     using (IPublisher publisher = Publisher.CreateInstance(connectionString))
     {
         publisher.Publish("topic-name", "message contents");
@@ -43,59 +42,52 @@ Usage
 ### Subscribing to Messages
 
     var connectionString = "nsqd=tcp://127.0.0.1:4150;";
-
     using (ISubscriber subscriber = Subscriber.CreateInstance("topic-name", "topic-name-channel", connectionString))
     {
         subscriber
             .OnMessageReceived(ctx => ExecuteMessageHandler(ctx))
             .OnConnectionError(err => LogError(err))
             .Start();
-
+    
         // wait for connections...
-    }
+}
 
 ### Handling Messages
     
     public static void ExecuteMessageHandler(IMessageContext ctx) 
     {
-    	const int MaxMessageAttempts = 3;
+        const int MaxMessageAttempts = 3;
 
-    	try 
-    	{
+        try 
+        {
             // Message can be deserialized into JSON or something else.
-    	    string utf8String = ctx.Message.ToUtf8String();
+            string utf8String = ctx.Message.ToUtf8String();
 
-            int iteration = 0;
-            while (iteration < 10)
+            while (IsLongProcessRunning(utf8String))
             {
-                if (iteration == 5)
-            	{
-                    // Avoid message timeout.
-                    ctx.Touch();
-                }
-
-                // Simulate a long-running process
+                // Avoid message timeout.
+                ctx.Touch();
                 Thread.Sleep(1000);
-                iteration++;
             }
 
             Assert.Equal("message contents", utf8String);
 
             // Tell NSQ that we're done with the message.
-    	    ctx.Finish();
+            ctx.Finish();
         }
         catch 
         {
-    	    if (ctx.Message.Attempts <= MaxMessageAttempts)
-    	    {
-    		    // requeue the message
+            if (ctx.Message.Attempts <= MaxMessageAttempts)
+            {
+                // requeue the message
                 ctx.Requeue();
-    	    }
+            }
             else 
             {
                 // Do something to handle the message, maybe put to 
                 // a custom dead letter queue.
-            	
+                WriteToDeadLetterQueue(ctx);
+
                 // Throw-out the message from the queue
                 ctx.Finish();
             }
