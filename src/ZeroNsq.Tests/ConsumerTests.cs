@@ -354,6 +354,60 @@ namespace ZeroNsq.Tests
             Assert.True(uniqueThreadCount >= opt.MaxInFlight);
         }
 
+        [Fact]
+        public void RespondNOPOnLongRunningMessageHandlerTest()
+        {
+            LogProvider.Configure()
+                .UseTrace();
+                
+            string topicName = "LongRunningMessage." + Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var opt = new SubscriberOptions { MaxInFlight = 1, HeartbeatIntervalInSeconds = 2 };
+            var resetEvent = new ManualResetEventSlim();
+            bool isSuccessful = false;
+            Exception caughtException = null;
+            Action<IMessageContext> onMessageReceived = msg =>
+            {
+                try
+                {
+                    string text = msg.Message.ToUtf8String();
+                    LogProvider.Current.Debug("MESSAGE HANDLER: Waiting... " + text);
+                    SleepFor(TimeSpan.FromSeconds(20)).Wait();
+                    LogProvider.Current.Debug("MESSAGE HANDLER: Done. Invoking FIN");
+                    msg.Finish();
+                    LogProvider.Current.Debug("MESSAGE HANDLER: Done. FIN Successful.");
+                    isSuccessful = true;
+                }
+                catch(Exception ex)
+                {
+                    caughtException = ex;
+                    isSuccessful = false;
+                }
+
+                resetEvent.Set();
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8118))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
+            {   
+                consumer.Start(topicName, onMessageReceived, err => {
+                    caughtException = err.Error;
+                    isSuccessful = false;
+                });
+
+                SleepFor(TimeSpan.FromSeconds(opt.HeartbeatIntervalInSeconds.Value * 3)).Wait();
+                publisher.Publish(topicName, "WAIT");
+                resetEvent.Wait();
+                publisher.Publish(topicName, "ANOTHER");
+                SleepFor(TimeSpan.FromSeconds(opt.HeartbeatIntervalInSeconds.Value)).Wait();
+
+                Assert.True(isSuccessful);
+                Assert.Null(caughtException);
+            }
+        }
+
         private static async Task SleepFor(TimeSpan ts)
         {
             await Task.Run(() => Wait.For(ts).Start());

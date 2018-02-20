@@ -22,12 +22,12 @@ namespace ZeroNsq.Internal
 
         public async Task PublishAsync(string topic, byte[] message)
         {
-            await Task.Run(() => Publish(topic, message));
+            await _connection.SendRequestAsync(new Publish(topic, message));
         }
 
         private void Publish(string topic, byte[] message)
         {
-            _connection.SendRequestAsync(new Publish(topic, message));
+            Task.Run(async () => await PublishAsync(topic, message)).Wait();
         }
 
         #region IDisposable Support

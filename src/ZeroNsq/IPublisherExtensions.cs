@@ -41,7 +41,7 @@ namespace ZeroNsq
         {
             try
             {   
-                Task.Run(() => PublishAsync(publisher, topic, utf8String)).Wait();
+                Task.Run(async () => await PublishAsync(publisher, topic, utf8String)).Wait();
             }
             catch (AggregateException ex)
             {
