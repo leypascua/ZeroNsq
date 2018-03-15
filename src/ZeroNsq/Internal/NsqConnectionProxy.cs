@@ -66,9 +66,10 @@ namespace ZeroNsq.Internal
             if (IsConnected) return;
 
             int backoffTime = _options.InitialBackoffTimeInSeconds * ReconnectionAttempts;
-            Thread.Sleep(TimeSpan.FromSeconds(backoffTime));
 
-            _rawConnection.Connect();
+            Wait.For(TimeSpan.FromSeconds(backoffTime))
+                .Then(() => _rawConnection.Connect())
+                .Start();
         }
 
         void INsqConnection.Close()

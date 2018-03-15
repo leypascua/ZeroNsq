@@ -31,18 +31,23 @@ namespace ZeroNsq.Tests
                 HeartbeatIntervalInSeconds = 2
             };
 
+            var resetEvent = new ManualResetEventSlim();
+
             using (var nsqd = Nsqd.StartLocal(9111))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, options))
             {
-                conn.OnHeartbeatResponded(() => isHeartbeatResponded = true)
+                conn
+                    .OnHeartbeatResponded(() => {
+                        isHeartbeatResponded = true;
+                        resetEvent.Set();
+                    })
                     .Connect();
 
                 // force idle time
-                Thread.Sleep(TimeSpan.FromSeconds((options.HeartbeatIntervalInSeconds.Value * 2) + 1));
+                int waitTime = (options.HeartbeatIntervalInSeconds.Value * 2) + 1;
+                resetEvent.Wait(TimeSpan.FromSeconds(waitTime));
 
-                // both requests should be alive.
-                conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));
-                Assert.Throws<RequestException>(() => conn.SendRequest(new InvalidRequest()));
+                conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));                
 
                 Assert.True(isHeartbeatResponded);
             }   
@@ -73,7 +78,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(9113))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
             {
-                conn.Connect();
+                conn.Connect();                
                 nsqd.Kill();
 
                 Assert.Throws<ConnectionException>(() =>
@@ -110,6 +115,17 @@ namespace ZeroNsq.Tests
             }
 
             Assert.NotEqual(0, receivedMessages);
+        }
+
+        [Fact]
+        public void InvalidRequestThrowsExceptionTest()
+        {
+            using (var nsqd = Nsqd.StartLocal(9115))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
+            {
+                conn.Connect();                
+                Assert.Throws<RequestException>(() => conn.SendRequest(new InvalidRequest()));
+            }
         }
 
         class InvalidRequest : IRequestWithResponse
