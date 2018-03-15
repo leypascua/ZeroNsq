@@ -9,6 +9,7 @@ using ZeroNsq.Internal;
 using ZeroNsq.Tests.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ZeroNsq.Helpers;
 
 namespace ZeroNsq.Tests
 {
@@ -27,10 +28,10 @@ namespace ZeroNsq.Tests
             int incomingMessageCount = 0;
 
             Action<IMessageContext> onMessageReceived = ctx => 
-            {    
-                Thread.Sleep(TimeSpan.FromSeconds(opt.MessageTimeout.Value - 1));
+            {
+                Wait.For(TimeSpan.FromSeconds(opt.MessageTimeout.Value - 1)).Start();                
                 ctx.Touch();
-                Thread.Sleep(TimeSpan.FromSeconds(opt.MessageTimeout.Value));
+                Wait.For(TimeSpan.FromSeconds(opt.MessageTimeout.Value)).Start();
                 ctx.Finish();                
 
                 incomingMessageCount += 1;
@@ -74,7 +75,9 @@ namespace ZeroNsq.Tests
                 }
 
                 // simulate a long process.
-                Thread.Sleep(TimeSpan.FromSeconds(opt.MessageTimeout.Value + 2));                
+                Wait.For(TimeSpan.FromSeconds(opt.MessageTimeout.Value + 2))
+                    .Start();
+                
                 msg.Finish();
 
                 if (msg.Message.Attempts > 1)
