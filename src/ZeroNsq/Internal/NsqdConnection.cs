@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using ZeroNsq.Helpers;
 using ZeroNsq.Protocol;
 
 namespace ZeroNsq.Internal
@@ -102,7 +103,8 @@ namespace ZeroNsq.Internal
 
                 if (attempts <= MaxLastResponseFetchCount)
                 {
-                    Thread.Sleep(DefaultThreadSleepTime);
+                    Wait.For(TimeSpan.FromMilliseconds(DefaultThreadSleepTime))
+                        .Start();
 
                     if (!_connectionResource.IsReaderBusy)
                     {
@@ -187,7 +189,8 @@ namespace ZeroNsq.Internal
                 _connectionResource.WriteBytes(Commands.CLS);
 
                 // give enough time for the server to respond
-                Thread.Sleep(TimeSpan.FromSeconds(1));
+                Wait.For(TimeSpan.FromSeconds(1))
+                    .Start();
             }
             catch { }
         }
@@ -244,8 +247,7 @@ namespace ZeroNsq.Internal
             }
 
             if (frame.Type == FrameType.Message)
-            {
-                Thread.Sleep(DefaultThreadSleepTime);
+            {   
                 _receivedFramesQueue.Enqueue(frame);
                 return FetchLastResponse();
             }

@@ -36,17 +36,9 @@ namespace ZeroNsq.Helpers
 
         public virtual void Start()
         {
-            using (var resetEvent = new ManualResetEventSlim())
-            using (var timer = new Timer(_timespan.TotalMilliseconds))
+            using (var resetEvent = new ManualResetEventSlim())            
             {
-                timer.Elapsed += (sender, args) =>
-                {
-                    timer.Stop();                    
-                    resetEvent.Set();
-                };
-
-                timer.Start();
-                resetEvent.Wait();
+                resetEvent.Wait(_timespan);
                 _callback();
             }
         }
