@@ -25,7 +25,7 @@ namespace ZeroNsq.Internal
 
         public void Finish()
         {
-            _connection.SendRequest(Commands.Finish(_internalMessage.Id));
+            _connection.SendRequestAsync(Commands.Finish(_internalMessage.Id));
         }
 
         public void Requeue()
@@ -37,7 +37,7 @@ namespace ZeroNsq.Internal
                 ///TODO: Get this value from somewhere... 
                 int requeueDeferTimeout = 0;
 
-                _connection.SendRequest(Commands.Requeue(_internalMessage.Id, requeueDeferTimeout));
+                _connection.SendRequestAsync(Commands.Requeue(_internalMessage.Id, requeueDeferTimeout));
             }
             else
             {
@@ -48,7 +48,7 @@ namespace ZeroNsq.Internal
 
         public void Touch()
         {
-            _connection.SendRequest(Commands.Touch(_internalMessage.Id));
+            _connection.SendRequestAsync(Commands.Touch(_internalMessage.Id));
         }
     }
 }

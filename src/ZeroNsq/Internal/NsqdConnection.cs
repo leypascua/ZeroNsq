@@ -65,7 +65,7 @@ namespace ZeroNsq.Internal
             _workerThread.Start();
         }
 
-        public async Task SendRequest(IRequest request)
+        public async Task SendRequestAsync(IRequest request)
         {
             await SendRequestAsync(request, isForced: false);
         }

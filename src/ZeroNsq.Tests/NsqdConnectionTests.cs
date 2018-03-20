@@ -47,7 +47,7 @@ namespace ZeroNsq.Tests
                 int waitTime = (options.HeartbeatIntervalInSeconds.Value * 2) + 1;
                 resetEvent.Wait(TimeSpan.FromSeconds(waitTime));
 
-                await conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));                
+                await conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, "Hello World"));                
 
                 Assert.True(isHeartbeatResponded);
             }   
@@ -65,7 +65,7 @@ namespace ZeroNsq.Tests
 
                 var results = Parallel.For(1, 32, async idx =>
                 {
-                    await conn.SendRequest(new Publish(Nsqd.DefaultTopicName, message));
+                    await conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, message));
                 });
 
                 Assert.True(results.IsCompleted);
@@ -82,7 +82,7 @@ namespace ZeroNsq.Tests
                 nsqd.Kill();
 
                 Assert.ThrowsAsync<ConnectionException>(() =>
-                    conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"))
+                    conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, "Hello World"))
                 );
             }
         }
@@ -99,17 +99,17 @@ namespace ZeroNsq.Tests
             {
                 subscriber.OnMessageReceived(async msg =>
                 {
-                    await subscriber.SendRequest(Commands.Finish(msg.Id));
+                    await subscriber.SendRequestAsync(Commands.Finish(msg.Id));
                     receivedMessages += 1;
                     resetEvent.Set();
                 });
 
                 subscriber.Connect();
-                await subscriber.SendRequest(new Subscribe(Nsqd.DefaultTopicName, Nsqd.DefaultTopicName));
+                await subscriber.SendRequestAsync(new Subscribe(Nsqd.DefaultTopicName, Nsqd.DefaultTopicName));
 
                 publisher.Publish(Nsqd.DefaultTopicName, "Hello World");
 
-                await subscriber.SendRequest(new Ready(1));
+                await subscriber.SendRequestAsync(new Ready(1));
 
                 resetEvent.Wait();
             }
@@ -124,7 +124,7 @@ namespace ZeroNsq.Tests
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
             {
                 conn.Connect();                
-                Assert.ThrowsAsync<RequestException>(() => conn.SendRequest(new InvalidRequest()));
+                Assert.ThrowsAsync<RequestException>(() => conn.SendRequestAsync(new InvalidRequest()));
             }
         }
 

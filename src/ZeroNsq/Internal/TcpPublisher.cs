@@ -27,7 +27,7 @@ namespace ZeroNsq.Internal
 
         private void Publish(string topic, byte[] message)
         {
-            _connection.SendRequest(new Publish(topic, message));
+            _connection.SendRequestAsync(new Publish(topic, message));
         }
 
         #region IDisposable Support

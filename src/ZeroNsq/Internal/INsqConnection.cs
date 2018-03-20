@@ -12,7 +12,7 @@ namespace ZeroNsq
 
         void Connect();
 
-        Task SendRequest(IRequest request);
+        Task SendRequestAsync(IRequest request);
 
         void Close();
 

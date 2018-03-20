@@ -68,7 +68,7 @@ namespace ZeroNsq.Internal
                     {
                         LogProvider.Current.Info(string.Format("Connecting consumer. Topic={0}; Channel={1};", _topicName, channelName));
                         Connection.Connect();
-                        Connection.SendRequest(new Subscribe(_topicName, channelName));
+                        Connection.SendRequestAsync(new Subscribe(_topicName, channelName));
                         AdviseReady(_options.MaxInFlight);
                         LogProvider.Current.Info(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, channelName));
                     }
@@ -107,7 +107,7 @@ namespace ZeroNsq.Internal
         {
             if (Connection.IsConnected)
             {
-                Connection.SendRequest(new Ready(maxInFlight));
+                Connection.SendRequestAsync(new Ready(maxInFlight));
                 _isReady = maxInFlight > 0;
             }
         }

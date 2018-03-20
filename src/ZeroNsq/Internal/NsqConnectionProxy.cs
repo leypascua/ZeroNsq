@@ -48,11 +48,11 @@ namespace ZeroNsq.Internal
             return result;
         }
 
-        public async Task SendRequest(IRequest request)
+        public async Task SendRequestAsync(IRequest request)
         {
             await ExecuteAsync(async conn =>
             {
-                await conn.SendRequest(request);
+                await conn.SendRequestAsync(request);
             });
         }
 
