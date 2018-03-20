@@ -22,7 +22,7 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
-        public void RespondToHeartbeatTest()
+        public async Task RespondToHeartbeatTest()
         {
             bool isHeartbeatResponded = false;
 
@@ -47,7 +47,7 @@ namespace ZeroNsq.Tests
                 int waitTime = (options.HeartbeatIntervalInSeconds.Value * 2) + 1;
                 resetEvent.Wait(TimeSpan.FromSeconds(waitTime));
 
-                conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));                
+                await conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"));                
 
                 Assert.True(isHeartbeatResponded);
             }   
@@ -63,9 +63,9 @@ namespace ZeroNsq.Tests
 
                 string message = new string('#', 1024 * 1024);
 
-                var results = Parallel.For(1, 32, idx =>
+                var results = Parallel.For(1, 32, async idx =>
                 {
-                    conn.SendRequest(new Publish(Nsqd.DefaultTopicName, message));
+                    await conn.SendRequest(new Publish(Nsqd.DefaultTopicName, message));
                 });
 
                 Assert.True(results.IsCompleted);
@@ -81,14 +81,14 @@ namespace ZeroNsq.Tests
                 conn.Connect();                
                 nsqd.Kill();
 
-                Assert.Throws<ConnectionException>(() =>
+                Assert.ThrowsAsync<ConnectionException>(() =>
                     conn.SendRequest(new Publish(Nsqd.DefaultTopicName, "Hello World"))
                 );
             }
         }
 
         [Fact]
-        public void ReceiveMessageTest()
+        public async Task ReceiveMessageTest()
         {
             var resetEvent = new ManualResetEventSlim();
             int receivedMessages = 0;
@@ -97,19 +97,19 @@ namespace ZeroNsq.Tests
             using (var subscriber = new NsqdConnection(nsqd.Host, nsqd.Port))
             using (var publisher = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
             {
-                subscriber.OnMessageReceived(msg =>
+                subscriber.OnMessageReceived(async msg =>
                 {
-                    subscriber.SendRequest(Commands.Finish(msg.Id));
+                    await subscriber.SendRequest(Commands.Finish(msg.Id));
                     receivedMessages += 1;
                     resetEvent.Set();
                 });
 
                 subscriber.Connect();
-                subscriber.SendRequest(new Subscribe(Nsqd.DefaultTopicName, Nsqd.DefaultTopicName));
+                await subscriber.SendRequest(new Subscribe(Nsqd.DefaultTopicName, Nsqd.DefaultTopicName));
 
                 publisher.Publish(Nsqd.DefaultTopicName, "Hello World");
 
-                subscriber.SendRequest(new Ready(1));
+                await subscriber.SendRequest(new Ready(1));
 
                 resetEvent.Wait();
             }
@@ -124,7 +124,7 @@ namespace ZeroNsq.Tests
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
             {
                 conn.Connect();                
-                Assert.Throws<RequestException>(() => conn.SendRequest(new InvalidRequest()));
+                Assert.ThrowsAsync<RequestException>(() => conn.SendRequest(new InvalidRequest()));
             }
         }
 

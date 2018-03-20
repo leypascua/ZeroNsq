@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using ZeroNsq.Helpers;
 using ZeroNsq.Protocol;
 
@@ -47,11 +48,11 @@ namespace ZeroNsq.Internal
             return result;
         }
 
-        public void SendRequest(IRequest request)
+        public async Task SendRequest(IRequest request)
         {
-            Execute(conn =>
+            await ExecuteAsync(async conn =>
             {
-                conn.SendRequest(request);
+                await conn.SendRequest(request);
             });
         }
 
@@ -84,10 +85,16 @@ namespace ZeroNsq.Internal
 
         private void Execute(Action<INsqConnection> callback)
         {
+            Func<INsqConnection, Task> asyncCallback = conn => Task.Run(() => callback(conn));
+            ExecuteAsync(asyncCallback).Wait();
+        }
+
+        private async Task ExecuteAsync(Func<INsqConnection, Task> callback)
+        {
             try
             {
                 (this as INsqConnection).Connect();
-                callback(_rawConnection);
+                await callback(_rawConnection);
                 ReconnectionAttempts = 0;
             }
             catch (SocketException ex)
@@ -99,15 +106,15 @@ namespace ZeroNsq.Internal
                     throw;
                 }
 
-                AttemptRetry(ex, callback);
+                await AttemptRetry(ex, callback);
             }
             catch (ConnectionException ex)
             {
-                AttemptRetry(ex, callback);
+                await AttemptRetry(ex, callback);
             }
         }
 
-        private void AttemptRetry(Exception error, Action<INsqConnection> callback)
+        private async Task AttemptRetry(Exception error, Func<INsqConnection, Task> callback)
         {
             if (_options.MaxClientReconnectionAttempts > 0)
             {
@@ -118,7 +125,7 @@ namespace ZeroNsq.Internal
             }
 
             ReconnectionAttempts += 1;
-            Execute(callback);
+            await ExecuteAsync(callback);
         }
 
         #region IDisposable members
