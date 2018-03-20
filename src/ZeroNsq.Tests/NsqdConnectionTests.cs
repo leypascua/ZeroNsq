@@ -17,7 +17,7 @@ namespace ZeroNsq.Tests
         {
             using (var conn = new NsqdConnection(Nsqd.Local, 31685))
             {
-                Assert.Throws<SocketException>(() => conn.Connect());
+                Assert.ThrowsAsync<SocketException>(() => conn.ConnectAsync());
             }
         }
 
@@ -36,12 +36,12 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(9111))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, options))
             {
-                conn
+                await conn
                     .OnHeartbeatResponded(() => {
                         isHeartbeatResponded = true;
                         resetEvent.Set();
                     })
-                    .Connect();
+                    .ConnectAsync();
 
                 // force idle time
                 int waitTime = (options.HeartbeatIntervalInSeconds.Value * 2) + 1;
@@ -54,12 +54,12 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
-        public void ConcurrentSendRequestTest()
+        public async Task ConcurrentSendRequestTest()
         {
             using (var nsqd = Nsqd.StartLocal(9112))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, ConnectionOptions.Default))
             {
-                conn.Connect();
+                await conn.ConnectAsync();
 
                 string message = new string('#', 1024 * 1024);
 
@@ -73,16 +73,16 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
-        public void DroppedConnectionTest()
+        public async Task DroppedConnectionTest()
         {
             using (var nsqd = Nsqd.StartLocal(9113))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
             {
-                conn.Connect();                
+                await conn.ConnectAsync();                
                 nsqd.Kill();
 
-                Assert.ThrowsAsync<ConnectionException>(() =>
-                    conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, "Hello World"))
+                await Assert.ThrowsAsync<ConnectionException>(() =>
+                     conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, "Hello World"))
                 );
             }
         }
@@ -104,7 +104,7 @@ namespace ZeroNsq.Tests
                     resetEvent.Set();
                 });
 
-                subscriber.Connect();
+                await subscriber.ConnectAsync();
                 await subscriber.SendRequestAsync(new Subscribe(Nsqd.DefaultTopicName, Nsqd.DefaultTopicName));
 
                 publisher.Publish(Nsqd.DefaultTopicName, "Hello World");
@@ -118,13 +118,13 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
-        public void InvalidRequestThrowsExceptionTest()
+        public async Task InvalidRequestThrowsExceptionTest()
         {
             using (var nsqd = Nsqd.StartLocal(9115))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
             {
-                conn.Connect();                
-                Assert.ThrowsAsync<RequestException>(() => conn.SendRequestAsync(new InvalidRequest()));
+                await conn.ConnectAsync();                
+                await Assert.ThrowsAsync<RequestException>(() => conn.SendRequestAsync(new InvalidRequest()));
             }
         }
 

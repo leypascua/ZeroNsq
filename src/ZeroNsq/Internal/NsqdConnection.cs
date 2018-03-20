@@ -50,12 +50,12 @@ namespace ZeroNsq.Internal
             }
         }
 
-        public void Connect()
+        public async Task ConnectAsync()
         {
             if (IsConnected) return;
 
             Initialize(this);
-            PerformHandshake(_options);
+            await PerformHandshakeAsync(_options);
 
             // start the worker and wait for incoming messages
             _workerCancellationTokenSource = new CancellationTokenSource();

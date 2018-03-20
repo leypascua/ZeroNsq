@@ -62,15 +62,15 @@ namespace ZeroNsq.Internal
             return this;
         }
 
-        void INsqConnection.Connect()
+        async Task INsqConnection.ConnectAsync()
         {
             if (IsConnected) return;
 
             int backoffTime = _options.InitialBackoffTimeInSeconds * ReconnectionAttempts;
 
-            Wait.For(TimeSpan.FromSeconds(backoffTime))
-                .Then(() => _rawConnection.Connect())
-                .Start();
+            Wait.For(TimeSpan.FromSeconds(backoffTime)).Start();
+
+            await _rawConnection.ConnectAsync();
         }
 
         void INsqConnection.Close()
@@ -93,7 +93,7 @@ namespace ZeroNsq.Internal
         {
             try
             {
-                (this as INsqConnection).Connect();
+                await (this as INsqConnection).ConnectAsync();
                 await callback(_rawConnection);
                 ReconnectionAttempts = 0;
             }

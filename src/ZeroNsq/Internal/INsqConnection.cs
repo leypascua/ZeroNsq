@@ -10,7 +10,7 @@ namespace ZeroNsq
     {
         bool IsConnected { get; }
 
-        void Connect();
+        Task ConnectAsync();
 
         Task SendRequestAsync(IRequest request);
 
