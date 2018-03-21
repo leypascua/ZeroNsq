@@ -66,11 +66,7 @@ namespace ZeroNsq.Internal
                 {
                     if (!IsConnected)
                     {
-                        LogProvider.Current.Info(string.Format("Connecting consumer. Topic={0}; Channel={1};", _topicName, channelName));
-                        Connection.ConnectAsync();
-                        Connection.SendRequestAsync(new Subscribe(_topicName, channelName));
-                        AdviseReady(_options.MaxInFlight);
-                        LogProvider.Current.Info(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, channelName));
+                        Task.Run(() => OpenConnectionAsync(Connection, _options, _topicName, channelName));
                     }
                 }
             }
@@ -103,13 +99,22 @@ namespace ZeroNsq.Internal
             }
         }
 
-        internal void AdviseReady(int maxInFlight)
+        internal async Task AdviseReadyAsync(int maxInFlight)
         {
             if (Connection.IsConnected)
             {
-                Connection.SendRequestAsync(new Ready(maxInFlight));
+                await Connection.SendRequestAsync(new Ready(maxInFlight));
                 _isReady = maxInFlight > 0;
             }
+        }
+
+        private async Task OpenConnectionAsync(INsqConnection connection, SubscriberOptions options, string topicName, string channelName)
+        {
+            LogProvider.Current.Info(string.Format("Connecting consumer. Topic={0}; Channel={1};", _topicName, channelName));
+            await connection.ConnectAsync();
+            await connection.SendRequestAsync(new Subscribe(topicName, channelName));
+            await AdviseReadyAsync(options.MaxInFlight);
+            LogProvider.Current.Info(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, channelName));
         }
 
         private void ExecuteHandler(HandlerExecutionContext handlerContext)
@@ -165,7 +170,7 @@ namespace ZeroNsq.Internal
                 {
                     // not caused by ZeroNsq. Stop incoming messages from flowing.
                     LogProvider.Current.Fatal("Unknown error detected. Advising RDY 0 to daemon.");
-                    AdviseReady(0);
+                    Task.Run(() => AdviseReadyAsync(0));
                 }
             }
         }
