@@ -278,7 +278,8 @@ namespace ZeroNsq.Tests
                 receivedData.ThreadId = Thread.CurrentThread.ManagedThreadId.ToString();
                 receivedData.Start = DateTime.UtcNow;
 
-                Thread.Sleep(TimeSpan.FromSeconds(sleepTime));
+                Wait.For(TimeSpan.FromSeconds(sleepTime))
+                    .Start();
                 
                 receivedData.End = DateTime.UtcNow;
                 receivedMessages.Add(receivedData);

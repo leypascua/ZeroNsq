@@ -289,7 +289,8 @@ namespace ZeroNsq.Internal
 
                 try
                 {
-                    Task.Run(() => OnFrameReceived(frame)).Wait();
+                    Task.Run(() => OnFrameReceived(frame))
+                        .Wait();
                 }
                 catch (AggregateException ex)
                 {
@@ -365,7 +366,8 @@ namespace ZeroNsq.Internal
 
         private void PerformHandshake(ConnectionOptions options)
         {
-            Task.Run(() => PerformHandshakeAsync(options)).Wait();
+            Task.Run(() => PerformHandshakeAsync(options))
+                .Wait();
         }
 
         private async Task PerformHandshakeAsync(ConnectionOptions options)
