@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using ZeroNsq.Helpers;
 using ZeroNsq.Protocol;
 
 namespace ZeroNsq.Internal
@@ -49,12 +50,12 @@ namespace ZeroNsq.Internal
             }
         }
 
-        public void Connect()
+        public async Task ConnectAsync()
         {
             if (IsConnected) return;
 
             Initialize(this);
-            PerformHandshake(_options);
+            await PerformHandshakeAsync(_options);
 
             // start the worker and wait for incoming messages
             _workerCancellationTokenSource = new CancellationTokenSource();
@@ -64,9 +65,9 @@ namespace ZeroNsq.Internal
             _workerThread.Start();
         }
 
-        public void SendRequest(IRequest request)
+        public async Task SendRequestAsync(IRequest request)
         {
-            SendRequest(request, isForced: false);
+            await SendRequestAsync(request, isForced: false);
         }
 
         public Frame ReadFrame()
@@ -102,7 +103,8 @@ namespace ZeroNsq.Internal
 
                 if (attempts <= MaxLastResponseFetchCount)
                 {
-                    Thread.Sleep(DefaultThreadSleepTime);
+                    Wait.For(TimeSpan.FromMilliseconds(DefaultThreadSleepTime))
+                        .Start();
 
                     if (!_connectionResource.IsReaderBusy)
                     {
@@ -172,9 +174,14 @@ namespace ZeroNsq.Internal
             LogProvider.Current.Info("NsqdConnection is closed.");
         }
 
-        internal void SendRequest(byte[] request)
+        internal async Task SendRequestAsync(IRequest request, bool isForced = false)
         {
-            SendRequest(request, false);
+            await SendRequestAsync(request.ToByteArray(), isForced);
+
+            bool isResponseExpected = request is IRequestWithResponse;
+            if (!isResponseExpected) return;
+
+            HandleResponse();
         }
 
         private void DispatchCls()
@@ -187,19 +194,10 @@ namespace ZeroNsq.Internal
                 _connectionResource.WriteBytes(Commands.CLS);
 
                 // give enough time for the server to respond
-                Thread.Sleep(TimeSpan.FromSeconds(1));
+                Wait.For(TimeSpan.FromSeconds(1))
+                    .Start();
             }
             catch { }
-        }
-
-        private void SendRequest(IRequest request, bool isForced)
-        {
-            SendRequest(request.ToByteArray(), isForced);
-
-            bool isResponseExpected = request is IRequestWithResponse;
-            if (!isResponseExpected) return;
-
-            HandleResponse();
         }
 
         private void HandleResponse()
@@ -244,8 +242,7 @@ namespace ZeroNsq.Internal
             }
 
             if (frame.Type == FrameType.Message)
-            {
-                Thread.Sleep(DefaultThreadSleepTime);
+            {   
                 _receivedFramesQueue.Enqueue(frame);
                 return FetchLastResponse();
             }
@@ -290,7 +287,15 @@ namespace ZeroNsq.Internal
                 if (!IsConnected) break;
                 if (frame == null) break;
 
-                OnFrameReceived(frame);
+                try
+                {
+                    Task.Run(() => OnFrameReceived(frame))
+                        .Wait();
+                }
+                catch (AggregateException ex)
+                {
+                    throw ex.InnerException;
+                }
             }
 
             _isWorkerThreadRunning = false;
@@ -298,7 +303,7 @@ namespace ZeroNsq.Internal
             LogProvider.Current.Warn("NsqdConnection worker loop terminated. Connection is idle.");
         }
 
-        private void OnFrameReceived(Frame frame)
+        private async Task OnFrameReceived(Frame frame)
         {
             LogProvider.Current.Debug("NsqdConnection.OnFrameReceived: " + frame.Type.ToString());
 
@@ -309,7 +314,7 @@ namespace ZeroNsq.Internal
                     if (frame.Data.SequenceEqual(Response.Heartbeat))
                     {
                         LogProvider.Current.Debug("Heartbeat request received. Responding with NOP");
-                        SendRequest(Commands.NOP);
+                        await SendRequestAsync(Commands.NOP);
 
                         if (_onHeartbeatRespondedCallback != null)
                         {
@@ -361,9 +366,15 @@ namespace ZeroNsq.Internal
 
         private void PerformHandshake(ConnectionOptions options)
         {
+            Task.Run(() => PerformHandshakeAsync(options))
+                .Wait();
+        }
+
+        private async Task PerformHandshakeAsync(ConnectionOptions options)
+        {
             LogProvider.Current.Debug(string.Format("Performing handshake"));
-            SendRequest(Commands.MAGIC_V2, isForced: true);
-            SendRequest(new Identify
+            await SendRequestAsync(Commands.MAGIC_V2, isForced: true);
+            await SendRequestAsync(new Identify
             {
                 hostname = options.Hostname,
                 client_id = options.ClientId,
@@ -381,14 +392,14 @@ namespace ZeroNsq.Internal
             LogProvider.Current.Debug(string.Format("Handshake completed."));
         }
 
-        private void SendRequest(byte[] payload, bool isForced = false)
+        private async Task SendRequestAsync(byte[] payload, bool isForced = false)
         {
             if (!isForced)
             {
                 EnsureOpenConnection(this);
             }
 
-            _connectionResource.WriteBytes(payload);
+            await _connectionResource.WriteBytesAsync(payload);
         }
 
         private static void Initialize(NsqdConnection conn, bool isForced = false)
@@ -452,6 +463,7 @@ namespace ZeroNsq.Internal
             // TODO: uncomment the following line if the finalizer is overridden above.
             // GC.SuppressFinalize(this);
         }
+
         #endregion
     }
 }

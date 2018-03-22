@@ -45,6 +45,29 @@ namespace ZeroNsq.Internal
 
         public void Start(string channelName, Action<IMessageContext> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
         {
+            try
+            {
+                Func<IMessageContext, Task> asyncCallback = ctx => {
+                    try
+                    {
+                        return Task.Run(() => callback(ctx));
+                    }
+                    catch (AggregateException ex)
+                    {
+                        throw ex.InnerException;
+                    }
+                };
+
+                Task.Run(() => StartAsync(channelName, asyncCallback, connectionErrorCallback, throwConnectionException)).Wait();
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        public async void StartAsync(string channelName, Func<IMessageContext, Task> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
+        {
             if (IsConnected) return;
 
             try
@@ -56,22 +79,19 @@ namespace ZeroNsq.Internal
                         Options = _options,
                         TopicName = _topicName,
                         ChannelName = channelName,
-                        MessageReceivedCallback = callback,
+                        MessageReceivedCallbackAsync = callback,
                         Message = msg,
                         ErrorCallback = connectionErrorCallback
                     });
                 });
-            
-                lock (_connectionLock)
+
+                try
                 {
-                    if (!IsConnected)
-                    {
-                        LogProvider.Current.Info(string.Format("Connecting consumer. Topic={0}; Channel={1};", _topicName, channelName));
-                        Connection.Connect();
-                        Connection.SendRequest(new Subscribe(_topicName, channelName));
-                        AdviseReady(_options.MaxInFlight);
-                        LogProvider.Current.Info(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, channelName));
-                    }
+                    await OpenConnectionAsync(Connection, _options, _topicName, channelName);
+                }
+                catch (AggregateException ex)
+                {
+                    throw ex.InnerException;
                 }
             }
             catch (Exception ex)
@@ -103,25 +123,31 @@ namespace ZeroNsq.Internal
             }
         }
 
-        internal void AdviseReady(int maxInFlight)
+        internal async Task AdviseReadyAsync(int maxInFlight)
         {
             if (Connection.IsConnected)
             {
-                Connection.SendRequest(new Ready(maxInFlight));
+                await Connection.SendRequestAsync(new Ready(maxInFlight));
                 _isReady = maxInFlight > 0;
+            }
+        }
+
+        private async Task OpenConnectionAsync(INsqConnection connection, SubscriberOptions options, string topicName, string channelName)
+        {
+            if (!IsConnected)
+            {
+                LogProvider.Current.Info(string.Format("Connecting consumer. Topic={0}; Channel={1};", _topicName, channelName));
+                await connection.ConnectAsync();
+                await connection.SendRequestAsync(new Subscribe(topicName, channelName));
+                await AdviseReadyAsync(options.MaxInFlight);
+                LogProvider.Current.Info(string.Format("Consumer started. Topic={0}; Channel={1}", _topicName, channelName));
             }
         }
 
         private void ExecuteHandler(HandlerExecutionContext handlerContext)
         {
             IMessageContext msgContext = handlerContext.CreateMessageContext();
-
-            var handlerTask = Task.Factory.StartNew(
-                () => ExecuteCallback(msgContext, handlerContext),
-                _cancellationToken,
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Current
-            );
+            var handlerTask = ExecuteCallbackAsync(msgContext, handlerContext);
 
             EnqueueHandlerTask(handlerTask, handlerContext);
         }
@@ -144,12 +170,12 @@ namespace ZeroNsq.Internal
             }
         }
 
-        private void ExecuteCallback(IMessageContext msgContext, HandlerExecutionContext handlerContext)
+        private async Task ExecuteCallbackAsync(IMessageContext msgContext, HandlerExecutionContext handlerContext)
         {
             try
             {
                 LogProvider.Current.Debug("Executing consumer callback");
-                handlerContext.MessageReceivedCallback(msgContext);
+                await handlerContext.MessageReceivedCallbackAsync(msgContext);
             }
             catch (Exception ex)
             {
@@ -165,7 +191,7 @@ namespace ZeroNsq.Internal
                 {
                     // not caused by ZeroNsq. Stop incoming messages from flowing.
                     LogProvider.Current.Fatal("Unknown error detected. Advising RDY 0 to daemon.");
-                    AdviseReady(0);
+                    await AdviseReadyAsync(0);
                 }
             }
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace ZeroNsq
 {
@@ -25,6 +26,13 @@ namespace ZeroNsq
         /// <param name="callback">The callback</param>
         /// <returns>The current instance</returns>
         ISubscriber OnMessageReceived(Action<IMessageContext> callback);
+
+        /// <summary>
+        /// Sets the asynchronous message received callback.
+        /// </summary>
+        /// <param name="callback">The callback</param>
+        /// <returns>The current instance</returns>
+        ISubscriber OnMessageReceivedAsync(Func<IMessageContext, Task> callback);
 
         /// <summary>
         /// Starts the subscriber

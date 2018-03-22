@@ -5,6 +5,7 @@ using System.Threading;
 using System.Timers;
 using ZeroNsq.Internal;
 using ZeroNsq.Helpers;
+using System.Threading.Tasks;
 
 namespace ZeroNsq
 {
@@ -19,8 +20,8 @@ namespace ZeroNsq
         private readonly string _topicName;
         private readonly string _channelName;
         private readonly CancellationTokenSource _cancellationTokenSource;
-        private readonly ConsumerFactory _consumerFactory;
-        private Action<IMessageContext> _onMessageReceivedCallback = ctx => { };
+        private readonly ConsumerFactory _consumerFactory;        
+        private Func<IMessageContext, Task> _onMessageReceivedCallbackAsync = ctx => Task.Run(() => { });
         private Action<ConnectionErrorContext> _onConnectionErrorCallback = ctx => { };
         private System.Timers.Timer _pollingTimer;
         private bool _isRunning;
@@ -94,7 +95,24 @@ namespace ZeroNsq
 
         ISubscriber ISubscriber.OnMessageReceived(Action<IMessageContext> callback)
         {
-            _onMessageReceivedCallback = callback;
+            Func<IMessageContext, Task> asyncCallback = async ctx =>
+            {
+                try
+                {
+                    await Task.Run(() => callback(ctx));
+                }
+                catch (AggregateException ex)
+                {
+                    throw ex.InnerException;
+                }
+            };
+
+            return (this as ISubscriber).OnMessageReceivedAsync(asyncCallback);            
+        }
+
+        ISubscriber ISubscriber.OnMessageReceivedAsync(Func<IMessageContext, Task> callback)
+        {
+            _onMessageReceivedCallbackAsync = callback;
             return this;
         }
 
@@ -174,7 +192,7 @@ namespace ZeroNsq
                     if (!consumer.IsConnected)
                     {
                         LogProvider.Current.Debug(string.Format("Starting consumer. Topic={0}; Channel={1}", _topicName, _channelName));
-                        consumer.Start(_channelName, _onMessageReceivedCallback, _onConnectionErrorCallback, throwConnectionException);                        
+                        consumer.StartAsync(_channelName, _onMessageReceivedCallbackAsync, _onConnectionErrorCallback, throwConnectionException);                        
                     }
                 }
                 catch (BaseException ex)

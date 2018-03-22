@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using ZeroNsq.Protocol;
 
 namespace ZeroNsq
@@ -9,9 +10,9 @@ namespace ZeroNsq
     {
         bool IsConnected { get; }
 
-        void Connect();
+        Task ConnectAsync();
 
-        void SendRequest(IRequest request);
+        Task SendRequestAsync(IRequest request);
 
         void Close();
 

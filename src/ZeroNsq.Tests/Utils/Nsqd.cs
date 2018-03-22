@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
+using ZeroNsq.Helpers;
 
 namespace ZeroNsq.Tests.Utils
 {
@@ -61,7 +62,7 @@ namespace ZeroNsq.Tests.Utils
 
             if (Process.HasExited)
             {
-                Thread.Sleep(TimeSpan.FromSeconds(5));
+                Wait.For(TimeSpan.FromSeconds(3)).Start();                
                 Process = Process.Start("nsqd.exe", args);
             }
 
@@ -83,7 +84,9 @@ namespace ZeroNsq.Tests.Utils
 
         public void Kill()
         {
-            Thread.Sleep(TimeSpan.FromSeconds(2));
+            Wait.For(TimeSpan.FromSeconds(2))
+                .Start();
+
             Dispose();
         }
 

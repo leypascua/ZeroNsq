@@ -1,4 +1,6 @@
-﻿using ZeroNsq.Protocol;
+﻿using System;
+using System.Threading.Tasks;
+using ZeroNsq.Protocol;
 
 namespace ZeroNsq.Internal
 {
@@ -25,10 +27,34 @@ namespace ZeroNsq.Internal
 
         public void Finish()
         {
-            _connection.SendRequest(Commands.Finish(_internalMessage.Id));
+            try
+            {
+                Task.Run(async () => await FinishAsync()).Wait();
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        public async Task FinishAsync()
+        {
+            await _connection.SendRequestAsync(Commands.Finish(_internalMessage.Id));
         }
 
         public void Requeue()
+        {
+            try
+            {
+                Task.Run(() => RequeueAsync()).Wait();
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        public async Task RequeueAsync()
         {
             int currentAttempts = (int)Message.Attempts;
 
@@ -37,7 +63,7 @@ namespace ZeroNsq.Internal
                 ///TODO: Get this value from somewhere... 
                 int requeueDeferTimeout = 0;
 
-                _connection.SendRequest(Commands.Requeue(_internalMessage.Id, requeueDeferTimeout));
+                await _connection.SendRequestAsync(Commands.Requeue(_internalMessage.Id, requeueDeferTimeout));
             }
             else
             {
@@ -48,7 +74,19 @@ namespace ZeroNsq.Internal
 
         public void Touch()
         {
-            _connection.SendRequest(Commands.Touch(_internalMessage.Id));
+            try
+            {
+                Task.Run(() => TouchAsync()).Wait();
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        public async Task TouchAsync()
+        {
+            await _connection.SendRequestAsync(Commands.Touch(_internalMessage.Id));
         }
     }
 }

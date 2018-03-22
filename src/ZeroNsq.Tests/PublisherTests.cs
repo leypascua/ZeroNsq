@@ -72,7 +72,7 @@ namespace ZeroNsq.Tests
             {
                 string topicName = "Test.Topic";
 
-                Assert.Throws<RequestException>(() => pub.Publish(topicName, new byte[0]));
+                Assert.Throws<RequestException>(() => pub.Publish(topicName, string.Empty));
             }
         }
 
@@ -107,7 +107,7 @@ namespace ZeroNsq.Tests
             using (var nsqd = Nsqd.StartLocal(7111))
             using (var conn = new NsqConnectionProxy(nsqd.Host, nsqd.Port, options))
             using (var pub = new TcpPublisher(conn, options))
-            {
+            {   
                 pub.Publish(Nsqd.DefaultTopicName, Message);
             }
         }
