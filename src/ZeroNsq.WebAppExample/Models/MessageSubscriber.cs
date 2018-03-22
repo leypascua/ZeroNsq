@@ -39,13 +39,14 @@ namespace ZeroNsq.WebAppExample.Models
                 try
                 {
                     context.Requeue();
-                    Console.WriteLine("Retry attempt for {0}: {1}", context.Message.IdString, context.Message.Attempts);
+                    
+                    ReceivedMessages.Push(string.Format("Retry attempt for {0}: {1}", context.Message.IdString, context.Message.Attempts));
                     return;
                 }
                 catch (MessageRequeueException)
                 {
                     context.Finish();
-                    Console.WriteLine("Exhausted retry attempts for msg {0}", context.Message.IdString);
+                    ReceivedMessages.Push(string.Format("Exhausted retry attempts for msg {0}", context.Message.IdString));
                     return;
                 }
             }
