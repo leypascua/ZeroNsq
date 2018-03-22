@@ -15,6 +15,7 @@ namespace ZeroNsq.WebAppExample.Models
         {
             var options = SubscriberOptions.Parse(connectionString);
             options.ClientId = "ZeroNsq.WebAppExample.Models.MessageSubscriber";
+            options.MaxInFlight = 3;
 
             ISubscriber subscriber = Subscriber.CreateInstance(topicName, channelName, options);
 
@@ -66,11 +67,12 @@ namespace ZeroNsq.WebAppExample.Models
         private static async Task Sleep()
         {
             await Task.Run(() =>
-            {   
+            {
+                string threadId = Thread.CurrentThread.ManagedThreadId.ToString();
                 var resetEvent = new ManualResetEventSlim();
-                ReceivedMessages.Push("Sleep: Waiting for 5 seconds");
-                resetEvent.Wait(TimeSpan.FromSeconds(5));
-                ReceivedMessages.Push("Sleep: Waking up thread");
+                ReceivedMessages.Push("Sleep: Thread " + threadId + " is waiting for 7 seconds");
+                resetEvent.Wait(TimeSpan.FromSeconds(7));
+                ReceivedMessages.Push("Sleep: Thread " + threadId + " is waking up");
             });
         }
     }
