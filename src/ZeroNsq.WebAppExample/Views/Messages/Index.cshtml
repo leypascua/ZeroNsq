@@ -1,0 +1,43 @@
+﻿@model IEnumerable<string>
+@{
+    ViewData["Title"] = "Messages";
+    string aspAction = "Publish";
+    string asyncMessage = string.Empty;
+
+    if (ViewBag.IsAsync)
+    {
+        aspAction = aspAction + "Async";
+        asyncMessage = "Async";
+    }
+}
+
+<div>
+    <h2>Messages</h2>
+    <div>
+        <ul>
+            @foreach (string val in this.Model)
+            {
+                <li>@val</li>
+            }
+        </ul>
+    </div>
+</div>
+
+<div>
+    <h2>Publish Message @asyncMessage</h2>
+    <div>
+        <form asp-controller="Messages" asp-action="@aspAction" method="post">
+            <div>
+                <input name="message" type="text" />
+            </div>
+            <div>
+                <button type="submit">Publish</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+
+

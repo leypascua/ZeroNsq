@@ -135,6 +135,38 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
+        public async Task AsyncMessageCallbackTest()
+        {
+            string topicName = "SubscribeAndFinish." + Guid.NewGuid().ToString();
+            string expectedMessage = Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var opt = new SubscriberOptions();
+            IMessageContext messageContext = null;
+            var resetEvent = new ManualResetEventSlim();
+
+            Func<IMessageContext, Task> onMessageReceivedAsync = async msg => {
+                await SleepFor(TimeSpan.FromSeconds(2));
+                messageContext = msg;
+                resetEvent.Set();
+                await msg.FinishAsync();
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8117))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
+            {
+                consumer.StartAsync(topicName, onMessageReceivedAsync, OnConnectionError);
+                await publisher.PublishAsync(topicName, expectedMessage);
+
+                resetEvent.Wait();
+            }
+
+            Assert.NotNull(messageContext);
+            Assert.Equal(expectedMessage, messageContext.Message.ToUtf8String());
+        }
+
+        [Fact]
         public void RequeueAttemptsExceededTest()
         {
             string topicName = "RequeueAttemptsExceeded." + Guid.NewGuid().ToString();
@@ -278,7 +310,8 @@ namespace ZeroNsq.Tests
                 receivedData.ThreadId = Thread.CurrentThread.ManagedThreadId.ToString();
                 receivedData.Start = DateTime.UtcNow;
 
-                Thread.Sleep(TimeSpan.FromSeconds(sleepTime));
+                Wait.For(TimeSpan.FromSeconds(sleepTime))
+                    .Start();
                 
                 receivedData.End = DateTime.UtcNow;
                 receivedMessages.Add(receivedData);
@@ -292,6 +325,8 @@ namespace ZeroNsq.Tests
                 }
             };
 
+            int actualPublishedCount = 0;
+
             using (var nsqd = Nsqd.StartLocal(8115))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
@@ -303,13 +338,25 @@ namespace ZeroNsq.Tests
                 {
                     var data = new HandledMessageData { Index = idx, Published = DateTime.UtcNow };
                     publisher.PublishJson(topicName, data);
+                    actualPublishedCount += 1;
                 });
 
-                resetEvent.Wait(TimeSpan.FromSeconds(expectedSleepTime));
+                resetEvent.Wait();
             }
 
+            int uniqueThreadCount = receivedMessages
+                .Select(x => x.ThreadId)
+                .Distinct()
+                .Count();
+
             Assert.Equal(expectedMessageCount, receivedMessages.Count);
-            Assert.Equal(expectedMessageCount, receivedMessages.Select(x => x.ThreadId).Distinct().Count());
+            Assert.Equal(actualPublishedCount, receivedMessages.Count);
+            Assert.True(uniqueThreadCount >= opt.MaxInFlight);
+        }
+
+        private static async Task SleepFor(TimeSpan ts)
+        {
+            await Task.Run(() => Wait.For(ts).Start());
         }
 
         private void OnConnectionError(ConnectionErrorContext ctx)

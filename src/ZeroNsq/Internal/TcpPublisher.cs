@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using ZeroNsq.Protocol;
 
 namespace ZeroNsq.Internal
@@ -19,20 +20,14 @@ namespace ZeroNsq.Internal
             _options = options;
         }
 
-        public void Publish(string topic, byte[] message)
+        public async Task PublishAsync(string topic, byte[] message)
         {
-            _connection.SendRequest(new Publish(topic, message));
+            await Task.Run(() => Publish(topic, message));
         }
 
-        public void Publish(string topic, string utf8String)
+        private void Publish(string topic, byte[] message)
         {
-            _connection.SendRequest(new Publish(topic, utf8String));
-        }
-
-        public void PublishJson<TMessage>(string topic, TMessage message) where TMessage : class, new()
-        {
-            string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
-            Publish(topic, json);
+            _connection.SendRequestAsync(new Publish(topic, message));
         }
 
         #region IDisposable Support

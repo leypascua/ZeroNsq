@@ -72,7 +72,7 @@ namespace ZeroNsq.Tests
             {
                 string topicName = "Test.Topic";
 
-                Assert.Throws<RequestException>(() => pub.Publish(topicName, new byte[0]));
+                Assert.Throws<RequestException>(() => pub.Publish(topicName, string.Empty));
             }
         }
 
