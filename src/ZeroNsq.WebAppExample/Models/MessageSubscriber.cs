@@ -19,7 +19,11 @@ namespace ZeroNsq.WebAppExample.Models
 
             subscriber
                 .OnMessageReceived(HandleMessage)
-                .OnConnectionError(errorContext => Console.WriteLine("Error: " + errorContext.Error.ToString()))
+                .OnConnectionError(errorContext =>
+                {
+                    string message = "Error: " + errorContext.Error.ToString();
+                    ReceivedMessages.Push(message);
+                })
                 .Start();
 
             return subscriber;

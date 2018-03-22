@@ -55,7 +55,7 @@ namespace ZeroNsq
         /// <param name="publisher">The publisher instance</param>
         /// <param name="topic">The target topic</param>
         /// <param name="utf8String">The message to be published</param>
-        /// <returns></returns>
+        /// <returns>An async Task</returns>
         public static async Task PublishAsync(this IPublisher publisher, string topic, string utf8String)
         {
             byte[] data = GetUtf8StringBytes(utf8String);
@@ -70,13 +70,34 @@ namespace ZeroNsq
         /// <param name="message">The message to be published</param>
         public static void PublishJson<TMessage>(this IPublisher publisher, string topic, TMessage message) where TMessage : class, new()
         {
+            try
+            {
+                Task.Run(() => PublishJsonAsync<TMessage>(publisher, topic, message));
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        /// <summary>
+        /// Publishes the message to the specified topic
+        /// </summary>
+        /// <typeparam name="TMessage">The type of message to be serialized into UTF8 JSON</typeparam>
+        /// <param name="publisher"></param>
+        /// <param name="topic">The target topic</param>
+        /// <param name="message">The message to be published</param>
+        /// <returns>An async Task</returns>
+        public static async Task PublishJsonAsync<TMessage>(this IPublisher publisher, string topic, TMessage message) where TMessage : class, new()
+        {
             if (message == default(TMessage))
             {
                 throw new InvalidOperationException("Message cannot be empty.");
             }
 
             string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
-            publisher.Publish(topic, json);
+
+            await PublishAsync(publisher, topic, json);
         }
 
         private static byte[] GetUtf8StringBytes(string utf8String)
