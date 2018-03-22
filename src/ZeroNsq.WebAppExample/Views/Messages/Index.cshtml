@@ -1,0 +1,17 @@
+﻿@model IEnumerable<string>
+@{
+    ViewData["Title"] = "Messages";
+}
+
+<h2>Messages</h2>
+<div>
+    <ul>
+        @foreach (string val in this.Model)
+        {
+            <li>@val</li>
+        }
+    </ul>
+</div>
+
+
+

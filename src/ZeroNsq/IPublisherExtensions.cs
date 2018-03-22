@@ -39,21 +39,27 @@ namespace ZeroNsq
         /// <param name="utf8String">The message to be published</param>
         public static void Publish(this IPublisher publisher, string topic, string utf8String)
         {
-            string msg = (utf8String ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(msg))
-            {
-                throw new RequestException("utf8String cannot be empty.");
-            }
-
             try
-            {
-                byte[] data = Encoding.UTF8.GetBytes(utf8String);
-                Task.Run(() => publisher.PublishAsync(topic, data)).Wait();
+            {   
+                Task.Run(() => PublishAsync(publisher, topic, utf8String)).Wait();
             }
             catch (AggregateException ex)
             {
                 throw ex.InnerException;
             }
+        }
+
+        /// <summary>
+        /// Publishes the message to the specified topic
+        /// </summary>
+        /// <param name="publisher">The publisher instance</param>
+        /// <param name="topic">The target topic</param>
+        /// <param name="utf8String">The message to be published</param>
+        /// <returns></returns>
+        public static async Task PublishAsync(this IPublisher publisher, string topic, string utf8String)
+        {
+            byte[] data = GetUtf8StringBytes(utf8String);
+            await publisher.PublishAsync(topic, data);
         }
 
         /// <summary>
@@ -71,6 +77,17 @@ namespace ZeroNsq
 
             string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
             publisher.Publish(topic, json);
+        }
+
+        private static byte[] GetUtf8StringBytes(string utf8String)
+        {
+            string msg = (utf8String ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(msg))
+            {
+                throw new RequestException("utf8String cannot be empty.");
+            }
+
+            return Encoding.UTF8.GetBytes(utf8String);
         }
     }
 }

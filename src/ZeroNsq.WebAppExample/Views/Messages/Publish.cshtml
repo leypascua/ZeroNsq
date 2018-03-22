@@ -1,0 +1,25 @@
+﻿
+@{
+    ViewData["Title"] = "Publish";
+    string aspAction = "Publish";
+    string asyncMessage = string.Empty;
+
+    if (ViewBag.IsAsync)
+    {
+        aspAction = aspAction + "Async";
+        asyncMessage = "Async";
+    }
+}
+
+<h2>Publish Message @asyncMessage</h2>
+<div>
+    <form asp-controller="Messages" asp-action="@aspAction" method="post">
+        <div>
+            <input name="message" type="text" />
+        </div>
+        <div>
+            <button type="submit">Publish</button>
+        </div>
+    </form>
+</div>
+
