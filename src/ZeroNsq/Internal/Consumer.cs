@@ -45,6 +45,29 @@ namespace ZeroNsq.Internal
 
         public void Start(string channelName, Action<IMessageContext> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
         {
+            try
+            {
+                Func<IMessageContext, Task> asyncCallback = ctx => {
+                    try
+                    {
+                        return Task.Run(() => callback(ctx));
+                    }
+                    catch (AggregateException ex)
+                    {
+                        throw ex.InnerException;
+                    }
+                };
+
+                Task.Run(() => StartAsync(channelName, asyncCallback, connectionErrorCallback, throwConnectionException)).Wait();
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        public async void StartAsync(string channelName, Func<IMessageContext, Task> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
+        {
             if (IsConnected) return;
 
             try
@@ -56,23 +79,19 @@ namespace ZeroNsq.Internal
                         Options = _options,
                         TopicName = _topicName,
                         ChannelName = channelName,
-                        MessageReceivedCallback = callback,
+                        MessageReceivedCallbackAsync = callback,
                         Message = msg,
                         ErrorCallback = connectionErrorCallback
                     });
                 });
-            
-                lock (_connectionLock)
+
+                try
                 {
-                    try
-                    {
-                        Task.Run(() => OpenConnectionAsync(Connection, _options, _topicName, channelName))
-                            .Wait();
-                    }
-                    catch (AggregateException ex)
-                    {
-                        throw ex.InnerException;
-                    }
+                    await OpenConnectionAsync(Connection, _options, _topicName, channelName);
+                }
+                catch (AggregateException ex)
+                {
+                    throw ex.InnerException;
                 }
             }
             catch (Exception ex)
@@ -128,13 +147,7 @@ namespace ZeroNsq.Internal
         private void ExecuteHandler(HandlerExecutionContext handlerContext)
         {
             IMessageContext msgContext = handlerContext.CreateMessageContext();
-
-            var handlerTask = Task.Factory.StartNew(
-                () => ExecuteCallback(msgContext, handlerContext),
-                _cancellationToken,
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Current
-            );
+            var handlerTask = ExecuteCallbackAsync(msgContext, handlerContext);
 
             EnqueueHandlerTask(handlerTask, handlerContext);
         }
@@ -157,12 +170,12 @@ namespace ZeroNsq.Internal
             }
         }
 
-        private void ExecuteCallback(IMessageContext msgContext, HandlerExecutionContext handlerContext)
+        private async Task ExecuteCallbackAsync(IMessageContext msgContext, HandlerExecutionContext handlerContext)
         {
             try
             {
                 LogProvider.Current.Debug("Executing consumer callback");
-                handlerContext.MessageReceivedCallback(msgContext);
+                await handlerContext.MessageReceivedCallbackAsync(msgContext);
             }
             catch (Exception ex)
             {
@@ -178,8 +191,7 @@ namespace ZeroNsq.Internal
                 {
                     // not caused by ZeroNsq. Stop incoming messages from flowing.
                     LogProvider.Current.Fatal("Unknown error detected. Advising RDY 0 to daemon.");
-                    Task.Run(() => AdviseReadyAsync(0))
-                        .Wait();
+                    await AdviseReadyAsync(0);
                 }
             }
         }

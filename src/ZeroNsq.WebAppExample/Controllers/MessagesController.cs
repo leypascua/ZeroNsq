@@ -11,17 +11,11 @@ namespace ZeroNsq.WebAppExample.Controllers
     {
         private readonly string connectionString = "nsqd=http://127.0.0.1:4151;";
         [HttpGet]
-        public IActionResult Index()
-        {
-            IEnumerable<string> model = MessageSubscriber.ReceivedMessages.Take(10);
-            return this.View(model);
-        }
-
-        [HttpGet]
-        public IActionResult Publish(bool? isAsync)
+        public IActionResult Index(bool? isAsync)
         {
             this.ViewBag.IsAsync = isAsync.GetValueOrDefault();
-            return this.View();
+            IEnumerable<string> model = MessageSubscriber.ReceivedMessages.Take(10);
+            return this.View(model);
         }
 
         [HttpPost]
@@ -31,9 +25,8 @@ namespace ZeroNsq.WebAppExample.Controllers
             {   
                 publisher.Publish(MessageSubscriber.TopicName, message);
             }
-
-            this.ViewBag.IsAsync = false;
-            return this.View();
+            
+            return this.RedirectToAction("Index", new { isAsync = false });
         }
 
         [HttpPost]
@@ -44,7 +37,7 @@ namespace ZeroNsq.WebAppExample.Controllers
                 await publisher.PublishAsync(MessageSubscriber.TopicName, message);
             }
 
-            return this.RedirectToAction("Publish", new { isAsync = true });
+            return this.RedirectToAction("Index", new { isAsync = true });
         }
     }
 }

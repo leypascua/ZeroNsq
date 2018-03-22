@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ZeroNsq.WebAppExample.Models
@@ -18,7 +19,7 @@ namespace ZeroNsq.WebAppExample.Models
             ISubscriber subscriber = Subscriber.CreateInstance(topicName, channelName, options);
 
             subscriber
-                .OnMessageReceived(HandleMessage)
+                .OnMessageReceivedAsync(HandleMessageAsync)
                 .OnConnectionError(errorContext =>
                 {
                     string message = "Error: " + errorContext.Error.ToString();
@@ -29,23 +30,29 @@ namespace ZeroNsq.WebAppExample.Models
             return subscriber;
         }
 
-        private static void HandleMessage(IMessageContext context)
+        private static async Task HandleMessageAsync(IMessageContext context)
         {
             string incomingMessage = context.Message.ToUtf8String();
+
+            // simulate a long-running async call
+            if (incomingMessage == "sleep")
+            {
+                await Sleep();
+            }
 
             // simulate an error
             if (incomingMessage == "err")
             {
                 try
                 {
-                    context.Requeue();
+                    await context.RequeueAsync();
                     
                     ReceivedMessages.Push(string.Format("Retry attempt for {0}: {1}", context.Message.IdString, context.Message.Attempts));
                     return;
                 }
                 catch (MessageRequeueException)
                 {
-                    context.Finish();
+                    await context.FinishAsync();
                     ReceivedMessages.Push(string.Format("Exhausted retry attempts for msg {0}", context.Message.IdString));
                     return;
                 }
@@ -53,7 +60,18 @@ namespace ZeroNsq.WebAppExample.Models
 
             // simulate a successful message.            
             ReceivedMessages.Push(incomingMessage);
-            context.Finish();
+            await context.FinishAsync();
+        }
+
+        private static async Task Sleep()
+        {
+            await Task.Run(() =>
+            {   
+                var resetEvent = new ManualResetEventSlim();
+                ReceivedMessages.Push("Sleep: Waiting for 5 seconds");
+                resetEvent.Wait(TimeSpan.FromSeconds(5));
+                ReceivedMessages.Push("Sleep: Waking up thread");
+            });
         }
     }
 }
