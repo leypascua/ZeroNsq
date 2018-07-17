@@ -145,7 +145,7 @@ namespace ZeroNsq.Tests
             var resetEvent = new ManualResetEventSlim();
 
             Func<IMessageContext, Task> onMessageReceivedAsync = async msg => {
-                await SleepFor(TimeSpan.FromSeconds(2));
+                await Task.Delay(TimeSpan.FromSeconds(2));
                 messageContext = msg;
                 resetEvent.Set();
                 await msg.FinishAsync();
@@ -156,7 +156,7 @@ namespace ZeroNsq.Tests
             using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
             using (var publisher = new TcpPublisher(nsqd.Host, nsqd.Port, opt))
             {
-                consumer.StartAsync(topicName, onMessageReceivedAsync, OnConnectionError);
+                await consumer.StartAsync(topicName, onMessageReceivedAsync, OnConnectionError);
                 await publisher.PublishAsync(topicName, expectedMessage);
 
                 resetEvent.Wait();

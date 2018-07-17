@@ -36,7 +36,7 @@ namespace ZeroNsq
             _cancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
             _consumerFactory = new ConsumerFactory(options, _cancellationTokenSource.Token);
 
-            var pollingTimeout = TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.GetValueOrDefault(DefaultHeartbeatIntervalInSeconds) + 5);
+            var pollingTimeout = TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.GetValueOrDefault(DefaultHeartbeatIntervalInSeconds) + 1);
             
             _pollingTimer = new System.Timers.Timer(pollingTimeout.TotalMilliseconds);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
@@ -97,14 +97,7 @@ namespace ZeroNsq
         {
             Func<IMessageContext, Task> asyncCallback = async ctx =>
             {
-                try
-                {
-                    await Task.Run(() => callback(ctx));
-                }
-                catch (AggregateException ex)
-                {
-                    throw ex.InnerException;
-                }
+                await Task.Run(() => callback(ctx));
             };
 
             return (this as ISubscriber).OnMessageReceivedAsync(asyncCallback);            
@@ -130,26 +123,24 @@ namespace ZeroNsq
             }
         }
 
-        void ISubscriber.Stop()
+        async Task ISubscriber.StopAsync()
         {
-            lock (_startLock)
+            if (_pollingTimer != null)
             {
-                if (_pollingTimer != null)
-                {
-                    _pollingTimer.Stop();
-                    _pollingTimer.Dispose();
-                    _pollingTimer = null;
-                }
-
-                if (_consumerFactory != null)
-                {
-                    _consumerFactory.Reset();
-                }
-
-                _isRunning = false;
-                LogProvider.Current.Info(string.Format("Subscriber stopped. Topic={0}; Channel={1}", _topicName, _channelName));
+                _pollingTimer.Stop();
+                _pollingTimer.Dispose();
+                _pollingTimer = null;
             }
+
+            if (_consumerFactory != null)
+            {
+                await _consumerFactory.ResetAsync().ConfigureAwait(false);
+            }
+
+            _isRunning = false;
+            LogProvider.Current.Info(string.Format("Subscriber stopped. Topic={0}; Channel={1}", _topicName, _channelName));
         }
+
 
         private void OnPollingTimerElapsed(object sender, ElapsedEventArgs e)
         {
@@ -192,7 +183,9 @@ namespace ZeroNsq
                     if (!consumer.IsConnected)
                     {
                         LogProvider.Current.Debug(string.Format("Starting consumer. Topic={0}; Channel={1}", _topicName, _channelName));
-                        consumer.StartAsync(_channelName, _onMessageReceivedCallbackAsync, _onConnectionErrorCallback, throwConnectionException);                        
+                        Task consumerTask = Task.Run(() => 
+                            consumer.StartAsync(_channelName, _onMessageReceivedCallbackAsync, _onConnectionErrorCallback, throwConnectionException),
+                            _cancellationTokenSource.Token);
                     }
                 }
                 catch (BaseException ex)
@@ -221,10 +214,17 @@ namespace ZeroNsq
         /// </summary>
         public void Dispose()
         {
-            (this as ISubscriber).Stop();
+            ISubscriber subs = this as ISubscriber;
+
+            Task.Run(() => subs.StopAsync()).Wait();            
 
             if (_cancellationTokenSource != null)
             {
+                if (!_cancellationTokenSource.IsCancellationRequested)
+                {
+                    _cancellationTokenSource.Cancel();
+                }
+                
                 _cancellationTokenSource.Dispose();
             }
 

@@ -40,7 +40,7 @@ namespace ZeroNsq.Internal
                 {
                     try
                     {
-                        _connection.Close();
+                        Task.Run(() => _connection.CloseAsync()).Wait();
                     }
                     catch {}
                     

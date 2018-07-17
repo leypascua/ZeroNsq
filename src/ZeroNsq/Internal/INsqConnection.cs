@@ -14,9 +14,7 @@ namespace ZeroNsq
 
         Task SendRequestAsync(IRequest request);
 
-        void Close();
-
-        Frame ReadFrame();
+        Task CloseAsync();        
 
         INsqConnection OnMessageReceived(Action<Message> callback);
     }

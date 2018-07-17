@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -16,18 +17,16 @@ namespace ZeroNsq.Internal
         private const int MaxLastResponseFetchCount = 32;        
         private readonly DnsEndPoint _endpoint;
         private readonly ConnectionOptions _options;
-        private readonly ManualResetEventSlim _frameReceivedResetEvent = new ManualResetEventSlim();
+        private readonly List<Task> _runningMessageHandlers = new List<Task>();
         private ConnectionResource _connectionResource;        
-        private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();
-        private ConcurrentQueue<Message> _receivedMessagesQueue = new ConcurrentQueue<Message>();
-        private Thread _workerThread;
-        private bool _isWorkerThreadRunning = false;
+        private ConcurrentQueue<Frame> _receivedFramesQueue = new ConcurrentQueue<Frame>();                
+        private Task _workerLoopTask;
         private CancellationTokenSource _workerCancellationTokenSource;        
         private Action<Message> _onMessageReceivedCallback = msg => { };
         private Action _onHeartbeatRespondedCallback;
         private bool _isIdentified = false;
         private bool _disposedValue = false; // To detect redundant calls         
-        private BaseException _workerLoopException;        
+        private BaseException _workerLoopException;
 
         public NsqdConnection(string host, int port, ConnectionOptions options = null) 
             : this(new DnsEndPoint(host, port), options) { }
@@ -45,8 +44,7 @@ namespace ZeroNsq.Internal
                 return _connectionResource != null &&
                        _connectionResource.IsInitialized &&
                        _isIdentified &&
-                       _isWorkerThreadRunning &&
-                       _workerThread != null &&
+                       (_workerLoopTask != null && !_workerLoopTask.IsCompleted) &&                       
                        !_disposedValue;
             }
         }
@@ -55,15 +53,11 @@ namespace ZeroNsq.Internal
         {
             if (IsConnected) return;
 
-            Initialize(this);
+            await InitializeAsync(this);
             await PerformHandshakeAsync(_options);
 
             // start the worker and wait for incoming messages
-            _workerCancellationTokenSource = new CancellationTokenSource();
-
-            _isWorkerThreadRunning = true;
-            _workerThread = new Thread(WorkerLoop);
-            _workerThread.Start();
+            _workerLoopTask = Task.Factory.StartNew(() => WorkerLoop(), _workerCancellationTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
         }
 
         public async Task SendRequestAsync(IRequest request)
@@ -71,7 +65,7 @@ namespace ZeroNsq.Internal
             await SendRequestAsync(request, isForced: false);
         }
 
-        public Frame ReadFrame()
+        public async Task<Frame> ReadFrameAsync()
         {   
             int attempts = 0;
 
@@ -81,12 +75,7 @@ namespace ZeroNsq.Internal
 
                 if (_receivedFramesQueue.IsEmpty)
                 {
-                    if (!_frameReceivedResetEvent.IsSet)
-                    {
-                        _frameReceivedResetEvent.Reset();
-                    }
-                    
-                    _frameReceivedResetEvent.Wait();
+                    await Task.Delay(TimeSpan.FromMilliseconds(DefaultThreadSleepTime));
                 }
 
                 if (_receivedFramesQueue.Count > 0)
@@ -104,8 +93,7 @@ namespace ZeroNsq.Internal
 
                 if (attempts <= MaxLastResponseFetchCount)
                 {
-                    Wait.For(TimeSpan.FromMilliseconds(DefaultThreadSleepTime))
-                        .Start();
+                    await Task.Delay(TimeSpan.FromMilliseconds(DefaultThreadSleepTime));
 
                     if (!_connectionResource.IsReaderBusy)
                     {
@@ -139,14 +127,12 @@ namespace ZeroNsq.Internal
             return this;
         }
 
-        public void Close()
+        public async Task CloseAsync()
         {
             if (!IsConnected) return;
-            
-            DispatchCls();
 
-            _isWorkerThreadRunning = false;
-
+            await DispatchCls();
+                        
             if (_workerCancellationTokenSource != null)
             {
                 _workerCancellationTokenSource.Cancel();
@@ -156,14 +142,11 @@ namespace ZeroNsq.Internal
 
             try
             {
-                if (!_workerThread.Join(TimeSpan.FromSeconds(3)))
-                {
-                    _workerThread.Abort();
-                }
+                _workerLoopTask.Dispose();
             }
             catch { }
 
-            _workerThread = null;
+            _workerLoopTask = null;
 
             if (_connectionResource != null)
             {
@@ -177,33 +160,32 @@ namespace ZeroNsq.Internal
 
         internal async Task SendRequestAsync(IRequest request, bool isForced = false)
         {
-            await SendRequestAsync(request.ToByteArray(), isForced);
+            await SendRequestAsync(request.ToByteArray(), isForced).ConfigureAwait(false);
 
             bool isResponseExpected = request is IRequestWithResponse;
             if (!isResponseExpected) return;
 
-            HandleResponse();
+            await HandleResponseAsync();
         }
 
-        private void DispatchCls()
+        private async Task DispatchCls()
         {
             try
             {
                 LogProvider.Current.Debug("NsqdConnection: Advise CLS to daemon host");
                 
                 // ignore all errors for this command.
-                _connectionResource.WriteBytes(Commands.CLS);
+                await _connectionResource.WriteBytesAsync(Commands.CLS);
 
                 // give enough time for the server to respond
-                Wait.For(TimeSpan.FromSeconds(1))
-                    .Start();
+                await Task.Delay(TimeSpan.FromSeconds(2));
             }
             catch { }
         }
 
-        private void HandleResponse()
+        private async Task HandleResponseAsync()
         {
-            Response response = FetchLastResponse();
+            Response response = await FetchLastReceivedResponseAsync();
 
             if (response == null)
             {
@@ -225,9 +207,9 @@ namespace ZeroNsq.Internal
             }
         }
 
-        private Response FetchLastResponse()
+        private async Task<Response> FetchLastReceivedResponseAsync()
         {   
-            var frame = ReadFrame();
+            var frame = await ReadFrameAsync();
             if (frame == null)
             {
                 LogProvider.Current.Warn("Frame not received in a timely manner.");
@@ -241,13 +223,7 @@ namespace ZeroNsq.Internal
                 
                 return new Response(frame.Data, error);
             }
-
-            if (frame.Type == FrameType.Message)
-            {   
-                _receivedFramesQueue.Enqueue(frame);
-                return FetchLastResponse();
-            }
-
+                        
             if (frame.Type == FrameType.Error)
             {
                 return new Response(frame.Data, frame.ToASCII());
@@ -262,45 +238,25 @@ namespace ZeroNsq.Internal
         {
             while (IsConnected)
             {
-                Frame frame = null;
-
                 try
-                {
-                    LogProvider.Current.Debug("NsqdConnection.WorkerLoop is waiting for a frame");
-                    frame = _connectionResource.ReadFrame();
-                }
-                catch (ObjectDisposedException)
                 {   
-                    break;
+                    bool isOk = Task.Run(() => ReceiveFramesAsync()).Result;
+
+                    if (!isOk) break;
                 }
-                catch (SocketException ex)
+                catch(AggregateException ex)
                 {
-                    _workerLoopException = ex;
-                    break;
-                }
-                catch (ConnectionException ex)
-                {
-                    Close();
-                    _workerLoopException = ex;
+                    if (_workerLoopException != null)
+                    {
+                        _workerLoopException = new ConnectionException(ex.InnerException.Message);
+                    }
+
                     break;
                 }
 
-                if (!IsConnected) break;
-                if (frame == null) break;
-
-                try
-                {
-                    Task.Run(() => OnFrameReceived(frame))
-                        .Wait();
-                }
-                catch (AggregateException ex)
-                {
-                    LogProvider.Current.Debug("WorkerLoop Exception caught: " + ex.InnerException.Message);
-                    throw ex.InnerException;
-                }
+                CleanupMessageHandlers();
             }
-
-            _isWorkerThreadRunning = false;
+                        
             _isIdentified = false;
             LogProvider.Current.Warn("NsqdConnection worker loop terminated. Connection is idle.");
 
@@ -308,9 +264,33 @@ namespace ZeroNsq.Internal
             {
                 LogProvider.Current.Debug("NsqdConnection.WorkerLoop Exception: " + _workerLoopException.Message);
             }
+
+            CleanupMessageHandlers();
         }
 
-        private async Task OnFrameReceived(Frame frame)
+        private async Task<bool> ReceiveFramesAsync()
+        {
+            try
+            {
+                LogProvider.Current.Debug("NsqdConnection.WorkerLoop is waiting for a frame");
+                Frame frame = await _connectionResource.ReadFrameAsync().ConfigureAwait(false);
+                await OnFrameReceivedAsync(frame);
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (BaseException ex)
+            {
+                _workerLoopException = ex;
+                await CloseAsync();
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task OnFrameReceivedAsync(Frame frame)
         {
             LogProvider.Current.Debug("NsqdConnection.OnFrameReceived: " + frame.Type.ToString());
 
@@ -336,8 +316,7 @@ namespace ZeroNsq.Internal
                         LogProvider.Current.Warn("Error frame received: " + frame.ToErrorCode());
                     }
 
-                    _receivedFramesQueue.Enqueue(frame);
-                    _frameReceivedResetEvent.Set();
+                    _receivedFramesQueue.Enqueue(frame);                    
                     break;
 
                 case FrameType.Message:
@@ -353,28 +332,10 @@ namespace ZeroNsq.Internal
                 throw new InvalidOperationException("Unable to get message from frame type " + frame.Type.ToString());
             }
 
-            _receivedMessagesQueue.Enqueue(frame.ToMessage());
-
             if (_onMessageReceivedCallback != null)
             {
-                while (_receivedMessagesQueue.Count > 0)
-                {
-                    Message msg = null;
-                    bool isMessageAvailable = _receivedMessagesQueue.TryDequeue(out msg);
-
-                    if (isMessageAvailable)
-                    {
-                        LogProvider.Current.Debug("Message is available, invoking _onMessageReceivedCallback for message");
-                        _onMessageReceivedCallback(msg);
-                    }
-                }
+                _runningMessageHandlers.Add(Task.Run(() => _onMessageReceivedCallback(frame.ToMessage())));
             }
-        }
-
-        private void PerformHandshake(ConnectionOptions options)
-        {
-            Task.Run(() => PerformHandshakeAsync(options))
-                .Wait();
         }
 
         private async Task PerformHandshakeAsync(ConnectionOptions options)
@@ -389,7 +350,7 @@ namespace ZeroNsq.Internal
                 heartbeat_interval = (int)TimeSpan.FromSeconds(options.HeartbeatIntervalInSeconds.Value).TotalMilliseconds
             }, isForced: true);
 
-            var frame = _connectionResource.ReadFrame();
+            var frame = await _connectionResource.ReadFrameAsync().ConfigureAwait(false);
             if (frame.Type != FrameType.Response)
             {
                 throw new ProtocolViolationException("Unexpected handshake response received: " + frame.ToASCII());
@@ -406,20 +367,22 @@ namespace ZeroNsq.Internal
                 EnsureOpenConnection(this);
             }
 
-            await _connectionResource.WriteBytesAsync(payload);
+            await _connectionResource.WriteBytesAsync(payload).ConfigureAwait(false);
         }
 
-        private static void Initialize(NsqdConnection conn, bool isForced = false)
+        private static async Task InitializeAsync(NsqdConnection conn, bool isForced = false)
         {
             if (!isForced)
             {
                 if (conn.IsConnected) return;
             }
-            
-            conn.Close();
 
-            conn._connectionResource = new ConnectionResource(conn._endpoint)
-                .Initialize(isForced);
+            await conn.CloseAsync();
+            
+            conn._connectionResource = await new ConnectionResource(conn._endpoint)
+                .InitializeAsync(isForced).ConfigureAwait(false);
+
+            conn._workerCancellationTokenSource = new CancellationTokenSource();
         }
 
         private static void EnsureOpenConnection(NsqdConnection instance)
@@ -437,6 +400,16 @@ namespace ZeroNsq.Internal
             }
         }
 
+        private void CleanupMessageHandlers()
+        {
+            var completedTasks = _runningMessageHandlers.Where(t => t.IsCompleted).ToList();
+            foreach (var task in completedTasks)
+            {
+                task.Dispose();
+                _runningMessageHandlers.Remove(task);
+            }
+        }
+
         #region IDisposable Support
 
         protected virtual void Dispose(bool disposing)
@@ -444,19 +417,14 @@ namespace ZeroNsq.Internal
             if (!_disposedValue)
             {
                 if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).         
-                    Close();
+                {                    
+                    Task.Run(() => CloseAsync());
                 }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
+                                
                 _disposedValue = true;
             }
         }
-
-        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+                
         // ~NsqdConnection() {
         //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
         //   Dispose(false);

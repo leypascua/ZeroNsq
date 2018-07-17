@@ -42,6 +42,6 @@ namespace ZeroNsq
         /// <summary>
         /// Stops the subscriber.
         /// </summary>
-        void Stop();
+        Task StopAsync();
     }
 }
