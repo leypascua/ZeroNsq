@@ -13,11 +13,11 @@ namespace ZeroNsq.Tests
     public class NsqdConnectionTests 
     {
         [Fact]
-        public void InvalidHostTest()
+        public async Task InvalidHostTest()
         {
             using (var conn = new NsqdConnection(Nsqd.Local, 31685))
             {
-                Assert.ThrowsAsync<SocketException>(() => conn.ConnectAsync());
+                await Assert.ThrowsAsync<SocketException>(() => conn.ConnectAsync());
             }
         }
 
@@ -54,32 +54,13 @@ namespace ZeroNsq.Tests
         }
 
         [Fact]
-        public async Task ConcurrentSendRequestTest()
-        {
-            using (var nsqd = Nsqd.StartLocal(9112))
-            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, ConnectionOptions.Default))
-            {
-                await conn.ConnectAsync();
-
-                string message = new string('#', 1024 * 1024);
-
-                var results = Parallel.For(1, 32, async idx =>
-                {
-                    await conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, message));
-                });
-
-                Assert.True(results.IsCompleted);
-            }
-        }
-
-        [Fact]
         public async Task DroppedConnectionTest()
         {
             using (var nsqd = Nsqd.StartLocal(9113))
             using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port))
             {
-                await conn.ConnectAsync();                
-                nsqd.Kill();
+                await conn.ConnectAsync();
+                await nsqd.KillAsync();
 
                 await Assert.ThrowsAsync<ConnectionException>(() =>
                      conn.SendRequestAsync(new Publish(Nsqd.DefaultTopicName, "Hello World"))

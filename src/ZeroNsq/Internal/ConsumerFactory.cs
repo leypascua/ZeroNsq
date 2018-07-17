@@ -41,37 +41,34 @@ namespace ZeroNsq.Internal
         {
             IDictionary<string, INsqConnection> locatedConnections = await GetConnections(topicName);
 
-            lock (syncLock)
+            // add
+            foreach (string key in locatedConnections.Keys)
             {
-                // add
-                foreach (string key in locatedConnections.Keys)
+                if (!_activeConsumers.ContainsKey(key))
                 {
-                    if (!_activeConsumers.ContainsKey(key))
-                    {
-                        var conn = locatedConnections[key];
-                        var consumer = new Consumer(topicName, conn, _options, _cancellationToken);
+                    var conn = locatedConnections[key];
+                    var consumer = new Consumer(topicName, conn, _options, _cancellationToken);
 
-                        _activeConsumers.Add(key, consumer);
-                    }
+                    _activeConsumers.Add(key, consumer);
                 }
+            }
 
-                // disconnect and remove
-                var obsoleteKeys = _activeConsumers.Keys
-                    .Where(k => !locatedConnections.Keys.Contains(k))
-                    .ToList();
+            // disconnect and remove
+            var obsoleteKeys = _activeConsumers.Keys
+                .Where(k => !locatedConnections.Keys.Contains(k))
+                .ToList();
 
-                foreach (var key in obsoleteKeys)
-                {
-                    LogProvider.Current.Warn(string.Format("Stopping consumer instance: {0}", key));
-                    _activeConsumers[key].Stop();
-                    _activeConsumers.Remove(key);
-                }
+            foreach (var key in obsoleteKeys)
+            {
+                LogProvider.Current.Warn(string.Format("Stopping consumer instance: {0}", key));
+                await _activeConsumers[key].StopAsync();
+                _activeConsumers.Remove(key);
             }
 
             return _activeConsumers.Values;
         }
 
-        public void Reset()
+        public async Task ResetAsync()
         {
             if (_activeConsumers != null)
             {
@@ -79,7 +76,7 @@ namespace ZeroNsq.Internal
                 {
                     if (consumer.IsConnected)
                     {
-                        consumer.Stop();
+                        await consumer.StopAsync().ConfigureAwait(false);
                     }
                 }
 
@@ -140,7 +137,7 @@ namespace ZeroNsq.Internal
 
         public void Dispose()
         {
-            Reset();
+            Task.Run(() => ResetAsync()).Wait();
         }
     }
 }

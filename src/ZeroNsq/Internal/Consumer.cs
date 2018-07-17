@@ -67,7 +67,7 @@ namespace ZeroNsq.Internal
             }
         }
 
-        public async Task StartAsync(string channelName, Func<IMessageContext, Task> callback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
+        public async Task StartAsync(string channelName, Func<IMessageContext, Task> asyncCallback, Action<ConnectionErrorContext> connectionErrorCallback, bool throwConnectionException = false)
         {
             if (IsConnected) return;
 
@@ -80,20 +80,13 @@ namespace ZeroNsq.Internal
                         Options = _options,
                         TopicName = _topicName,
                         ChannelName = channelName,
-                        MessageReceivedCallbackAsync = callback,
+                        MessageReceivedCallbackAsync = asyncCallback,
                         Message = msg,
                         ErrorCallback = connectionErrorCallback
                     });
                 });
 
-                try
-                {
-                    await OpenConnectionAsync(Connection, _options, _topicName, channelName);
-                }
-                catch (AggregateException ex)
-                {
-                    throw ex.InnerException;
-                }
+                await OpenConnectionAsync(Connection, _options, _topicName, channelName);
             }
             catch (Exception ex)
             {
@@ -117,10 +110,20 @@ namespace ZeroNsq.Internal
             {
                 if (IsConnected)
                 {
-                    Connection.Close();
+                    Task.Run(() => Connection.CloseAsync()).Wait();
                     _isReady = false;
                     LogProvider.Current.Info(string.Format("Stopping consumer instance. Topic={0};", _topicName));
                 }
+            }
+        }
+
+        public async Task StopAsync()
+        {
+            if (IsConnected)
+            {
+                await Connection.CloseAsync();
+                _isReady = false;
+                LogProvider.Current.Info(string.Format("Stopping consumer instance. Topic={0};", _topicName));
             }
         }
 
@@ -149,7 +152,7 @@ namespace ZeroNsq.Internal
         {
             IMessageContext msgContext = handlerContext.CreateMessageContext();
 
-            _runningTasks.Add(Task.Run(async () => await ExecuteCallbackAsync(msgContext, handlerContext)));
+            _runningTasks.Add(Task.Run(async () => await ExecuteCallbackAsync(msgContext, handlerContext), _cancellationToken));
                         
             foreach (Task ct in _runningTasks.Where(t => t.IsCompleted).ToList())
             {
@@ -169,19 +172,11 @@ namespace ZeroNsq.Internal
 
             try
             {   
-                if (MaxAllowableWorkerThreadsActive(_runningTasks, handlerContext.Options.MaxInFlight))
-                {
-                    LogProvider.Current.Debug(string.Format("[T#{0}] Max allowable workers (MaxInFlight={1}) exceeded. Waiting for a handler task to complete...", 
-                        threadId, handlerContext.Options.MaxInFlight));
-
-                    Task.WaitAny(_runningTasks.ToArray());
-                }
-
                 LogProvider.Current.Debug(string.Format("[T#{0}] Executing consumer callback", threadId));
                 var stopWatch = Stopwatch.StartNew();
                 await handlerContext.MessageReceivedCallbackAsync(msgContext);
-                LogProvider.Current.Debug(string.Format("[T#{0}] Consumer callback execution completed after {1} seconds.", threadId, stopWatch.Elapsed.TotalSeconds));
                 stopWatch.Stop();
+                LogProvider.Current.Debug(string.Format("[T#{0}] Consumer callback execution completed after {1} seconds.", threadId, stopWatch.Elapsed.TotalSeconds));                
             }
             catch (Exception ex)
             {
@@ -202,20 +197,11 @@ namespace ZeroNsq.Internal
             }
         }
 
-        private static bool MaxAllowableWorkerThreadsActive(IEnumerable<Task> runningTasks, int maxInFlight)
-        {   
-            int activeTaskCount = runningTasks.Count(t => !t.IsCompleted);
-
-            if (activeTaskCount == 0) return false;
-
-            return activeTaskCount > maxInFlight;
-        }
-
         #region IDisposable members
 
         public void Dispose()
         {
-            Stop();
+            Task.Run(() => StopAsync()).Wait();
         }
 
         #endregion

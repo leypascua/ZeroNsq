@@ -38,7 +38,7 @@ namespace ZeroNsq.Internal
             }
         }
 
-        public ConnectionResource Initialize(bool isForced = false)
+        public async Task<ConnectionResource> InitializeAsync(bool isForced = false)
         {
             if (!isForced)
             {
@@ -47,75 +47,33 @@ namespace ZeroNsq.Internal
 
             ReleaseResources();
 
-            lock (_connectionLock)
-            {
-                _tcpClient = new TcpClient();
-                
-                try
-                {
-                    LogProvider.Current.Debug(string.Format("Connecting to Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));
-                    _tcpClient.ConnectAsync(_endpoint.Host, _endpoint.Port).Wait();
-                }                
-                catch (AggregateException ex)
-                {
-                    var socketError = ex.InnerException as System.Net.Sockets.SocketException;
-                    if (socketError != null)
-                    {
-                        throw new SocketException(socketError.Message);
-                    }
+            _tcpClient = new TcpClient();
 
-                    throw ex.Flatten();
-                }
-                
-                _networkStream = _tcpClient.GetStream();
-                _frameReader = new FrameReader(_networkStream);
-                LogProvider.Current.Info(string.Format("Connection established. Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));
+            try
+            {
+                LogProvider.Current.Debug(string.Format("Connecting to Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));
+                await _tcpClient.ConnectAsync(_endpoint.Host, _endpoint.Port).ConfigureAwait(false);
             }
+            catch (System.Net.Sockets.SocketException ex)
+            {
+                throw new SocketException(ex.Message);
+            }
+
+            _networkStream = _tcpClient.GetStream();
+            _frameReader = new FrameReader(_networkStream);
+            LogProvider.Current.Info(string.Format("Connection established. Host={0}; Port={1};", _endpoint.Host, _endpoint.Port));
 
             return this;
         }
-
-        public Frame ReadFrame()
-        {
-            lock (_readerLock)
-            {
-                try
-                {
-                    var task = ReadFrameAsync();
-                    task.Wait();
-
-                    return task.Result;
-                }
-                catch (AggregateException ex)
-                {
-                    throw ex.InnerException;
-                }
-            }
-        }
-
+        
         public async Task<Frame> ReadFrameAsync()
         {
-            return await _frameReader.ReadFrameAsync();
-        }
-
-        public void WriteBytes(byte[] payload)
-        {
-            lock (_writerLock)
-            {
-                try
-                {
-                    WriteBytesAsync(payload).Wait();
-                }
-                catch (AggregateException ex)
-                {
-                    throw ex.InnerException;
-                }
-            }
+            return await _frameReader.ReadFrameAsync().ConfigureAwait(false);
         }
 
         public async Task WriteBytesAsync(byte[] payload)
         {
-            await _networkStream.WriteAsync(payload, 0, payload.Length);
+            await _networkStream.WriteAsync(payload, 0, payload.Length).ConfigureAwait(false);
         }
 
         public void Dispose()

@@ -21,14 +21,9 @@ namespace ZeroNsq
                 throw new RequestException("message cannot be empty.");
             }
 
-            try
-            {
-                Task.Run(() => publisher.PublishAsync(topic, message)).Wait();
-            }
-            catch (AggregateException ex)
-            {
-                throw ex.InnerException;
-            }
+            Task.Run(() => publisher.PublishAsync(topic, message))
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
@@ -39,14 +34,9 @@ namespace ZeroNsq
         /// <param name="utf8String">The message to be published</param>
         public static void Publish(this IPublisher publisher, string topic, string utf8String)
         {
-            try
-            {   
-                Task.Run(async () => await PublishAsync(publisher, topic, utf8String)).Wait();
-            }
-            catch (AggregateException ex)
-            {
-                throw ex.InnerException;
-            }
+            Task.Run(() => PublishAsync(publisher, topic, utf8String))
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
@@ -68,11 +58,12 @@ namespace ZeroNsq
         /// <typeparam name="TMessage">The type of message to be serialized into UTF8 JSON</typeparam>
         /// <param name="topic">The target topic</param>
         /// <param name="message">The message to be published</param>
+        [Obsolete]
         public static void PublishJson<TMessage>(this IPublisher publisher, string topic, TMessage message) where TMessage : class, new()
         {
             try
             {
-                Task.Run(() => PublishJsonAsync<TMessage>(publisher, topic, message));
+                Task.Run(() => PublishJsonAsync<TMessage>(publisher, topic, message)).Wait();
             }
             catch (AggregateException ex)
             {
@@ -88,6 +79,7 @@ namespace ZeroNsq
         /// <param name="topic">The target topic</param>
         /// <param name="message">The message to be published</param>
         /// <returns>An async Task</returns>
+        [Obsolete]
         public static async Task PublishJsonAsync<TMessage>(this IPublisher publisher, string topic, TMessage message) where TMessage : class, new()
         {
             if (message == default(TMessage))

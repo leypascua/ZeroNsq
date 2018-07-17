@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using ZeroNsq.Helpers;
 
 namespace ZeroNsq.Tests.Utils
@@ -84,12 +85,16 @@ namespace ZeroNsq.Tests.Utils
 
         public void Kill()
         {
-            Wait.For(TimeSpan.FromSeconds(2))
-                .Start();
+            Task.Run(() => KillAsync()).Wait();
+        }
+
+        public async Task KillAsync()
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             Dispose();
         }
-
+        
         public void Dispose()
         {
             if (Process != null && !Process.HasExited)

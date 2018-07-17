@@ -36,18 +36,6 @@ namespace ZeroNsq.Internal
             return string.Format("{0}|{1}", host, port).Md5();
         }
 
-        public Frame ReadFrame()
-        {
-            Frame result = null;
-
-            Execute(conn =>
-            {
-                result = conn.ReadFrame();
-            });
-
-            return result;
-        }
-
         public async Task SendRequestAsync(IRequest request)
         {
             await ExecuteAsync(async conn =>
@@ -73,14 +61,9 @@ namespace ZeroNsq.Internal
             await _rawConnection.ConnectAsync();
         }
 
-        void INsqConnection.Close()
+        async Task INsqConnection.CloseAsync()
         {
-            if (_rawConnection != null)
-            {
-                _rawConnection.Close();
-                _rawConnection.Dispose();
-                _rawConnection = null;
-            }
+            await _rawConnection.CloseAsync();
         }
 
         private void Execute(Action<INsqConnection> callback)
@@ -132,7 +115,8 @@ namespace ZeroNsq.Internal
 
         public void Dispose()
         {
-            (this as INsqConnection).Close();
+            Task.Run(() => (this as INsqConnection).CloseAsync())
+                .Wait();
         }
 
         #endregion
