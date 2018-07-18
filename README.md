@@ -15,21 +15,18 @@ Usage
 ### Download for netstandard2.0 via NuGet
     Install-Package ZeroNsq
 
-### Download for net45 via NuGEt
-    Install-Package ZeroNsq.net45
-
 ### Connection strings
 
     // for publishers / producers:
-    var publisherConnStr = "nsqd=http://127.0.0.1:4151;"; // connection to HTTP NSQD endpoint is preferred.
+    var publisherConnStr = "nsqd=http://127.0.0.1:4151;"; // A connection to a HTTP NSQD endpoint is preferred.
 
     // for subscribers / consumers:
-    var consumerConnStr = "nsqd=tcp://127.0.0.1:4150; " + // the nsqd host URI. Can be defined more than once.
-                          "MessageTimeout=120; " + // the max amount of time in seconds a message can be in-flight before it times out
-                          "HeartbeatIntervalInSeconds=30; " + // the NSQ protocol heartbeat interval
-                          "MaxClientReconnectionAttempts=3; " + // the max number of attempts to reconnect to the NSQD instance
-                          "MaxInFlight=1; " + // the max number of messages that are in-flight 
-                          "MaxRetryAttempts=3;"; // the max NSQ command submission attempts when an operation fails
+    var consumerConnStr = "nsqd=tcp://127.0.0.1:4150; " + // Required. The nsqd host URI. Can be defined more than once.
+                          "MessageTimeout=120; " + // Optional. the max amount of time in seconds a message can be in-flight before it times out
+                          "HeartbeatIntervalInSeconds=30; " + // Optional. The NSQ protocol heartbeat interval
+                          "MaxClientReconnectionAttempts=3; " + // Optional. The max number of attempts to reconnect to the NSQD instance
+                          "MaxInFlight=1; " + // Optional. The max number of messages that are in-flight 
+                          "MaxRetryAttempts=3;"; // Optional. The max NSQ command submission attempts when an operation fails
 
 ### Publishing Messages
 
