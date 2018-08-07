@@ -1,15 +1,16 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 
 namespace ZeroNsq.Internal
 {
     public class ConnectionOptions
     {
-        public const int DefaultTcpPort = 4150;
-        private readonly static int DefaultMaxClientReconnectionAttempts = 3;
+        public const int DefaultTcpPort = 4150;        
         const int DefaultInitialBackoffTimeInSeconds = 8;
         const int DefaultHeartbeatIntervalInSeconds = 30;
         const int DefaultMessageTimeoutInSeconds = 120;
 
+        private readonly static int DefaultMaxClientReconnectionAttempts = 3;
         public static readonly ConnectionOptions Default = SetDefaults(null);
 
         public ConnectionOptions()
@@ -30,6 +31,12 @@ namespace ZeroNsq.Internal
 
         public int MaxClientReconnectionAttempts { get; set; }
         public int InitialBackoffTimeInSeconds { get; set; }
+
+
+        /// <summary>
+        /// Gets or sets callback function whenever the connection responds to nsqd heartbeat
+        /// </summary>
+        public Action OnHeartBeatRespondedCallback { get; set; }
 
         public static ConnectionOptions SetDefaults(ConnectionOptions options)
         {

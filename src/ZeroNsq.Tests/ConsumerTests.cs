@@ -408,6 +408,44 @@ namespace ZeroNsq.Tests
             }
         }
 
+       
+
+        [Fact]
+        public void SubscriberHeartbeatRespondedCallbackTest()
+        {
+            string topicName = "HeartbeatResponse." + Guid.NewGuid().ToString();
+            var cancellationSource = new CancellationTokenSource();
+            var resetEvent = new ManualResetEventSlim();
+
+            bool heartbeatCallbackWasCalled = false;
+            
+            Action heartbeatCallback = () => {
+                LogProvider.Current.Debug("MESSAGE HANDLER: Heartbeat was received at: " + DateTime.Now);
+                heartbeatCallbackWasCalled = true;
+                resetEvent.Set();
+            };
+
+            var opt = new SubscriberOptions();
+            opt.OnHeartBeatRespondedCallback = heartbeatCallback;
+
+            Action<IMessageContext> onMessageReceived = ctx =>
+            {
+                ctx.Finish();
+            };
+
+            using (var nsqd = Nsqd.StartLocal(8119))
+            using (var conn = new NsqdConnection(nsqd.Host, nsqd.Port, opt))
+            using (var consumer = new Consumer(topicName, conn, opt, cancellationSource.Token))
+            using (var publisher = Publisher.CreateInstance(host: nsqd.Host, port: nsqd.HttpPort, scheme: "http"))
+            {
+                consumer.Start(topicName, onMessageReceived, OnConnectionError);
+                
+                resetEvent.Wait();
+
+                Assert.True(heartbeatCallbackWasCalled);
+            }
+        }
+
         private static async Task SleepFor(TimeSpan ts)
         {
             await Task.Run(() => Wait.For(ts).Start());
