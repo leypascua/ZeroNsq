@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace ZeroNsq
 {
+    using ZeroNsq.Helpers;
+
     public static class IPublisherExtensions
     {
         /// <summary>
@@ -87,8 +89,7 @@ namespace ZeroNsq
                 throw new InvalidOperationException("Message cannot be empty.");
             }
 
-            string json = Jil.JSON.Serialize<TMessage>(message, Jil.Options.ExcludeNulls);
-
+            string json = message.ToJson();
             await PublishAsync(publisher, topic, json);
         }
 

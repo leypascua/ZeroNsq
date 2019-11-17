@@ -1,8 +1,7 @@
-﻿using Jil;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ZeroNsq.Lookup
@@ -36,14 +35,14 @@ namespace ZeroNsq.Lookup
 
             string json = await HttpClient.GetStringAsync(uriBuilder.Uri);
 
-            var response = JSON.Deserialize<LookupTopicProducersResponse>(json);
+            var response = JsonConvert.DeserializeObject<LookupTopicProducersResponse.Result>(json);
 
-            if (response == null || response.status_code != 200)
+            if (response == null)
             {
                 throw new HttpRequestException("Unhandled exception ocurred on the request to " + uriBuilder.Uri.AbsoluteUri);
             }
 
-            return response.data.producers;
+            return response.producers;
         }
     }
 }

@@ -18,19 +18,19 @@ namespace ZeroNsq.Tests.Utils
         public static int NextAvailablePort = 8149;
         public readonly static object SyncLock = new object();
 
-        public static NsqdInstance StartLocal(int port = 0)
+        public static NsqdInstance StartLocal(int port = 0, int? lookupd = null)
         {
-            return Start(Local, port);
+            return Start(Local, port, lookupd);
         }
 
-        public static NsqdInstance Start(string host, int port = 0)
+        public static NsqdInstance Start(string host, int port = 0, int? lookupd = null)
         {
             if (port == 0)
             {
                 port = Nsqd.NextPort();
             }
 
-            return new NsqdInstance(host, port);
+            return new NsqdInstance(host, port, lookupd);
         }
 
         public static int NextPort()
@@ -45,7 +45,7 @@ namespace ZeroNsq.Tests.Utils
 
     public class NsqdInstance : IDisposable
     {
-        public NsqdInstance(string host, int port)
+        public NsqdInstance(string host, int port, int? lookupdPort = null)
         {
             var dinfo = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "nsqd", port.ToString()));
 
@@ -59,18 +59,29 @@ namespace ZeroNsq.Tests.Utils
             string args = string.Format("-tcp-address {0}:{1} -http-address {0}:{2} -data-path {3}",
                 host, port, httpPort, dinfo.FullName);
 
-            Process = Process.Start("nsqd.exe", args);
-
-            if (Process.HasExited)
+            if (lookupdPort.HasValue)
             {
-                Wait.For(TimeSpan.FromSeconds(3)).Start();                
-                Process = Process.Start("nsqd.exe", args);
+                args = args + $" -lookupd-tcp-address 0.0.0.0:{lookupdPort.Value}";
             }
 
-            if (Process.HasExited)
+            var process = new Process();
+            process.StartInfo.FileName = "nsqd.exe";
+            process.StartInfo.Arguments = args;            
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+
+            if (!process.Start())
+            {
+                Wait.For(TimeSpan.FromSeconds(3)).Start();
+                process.Start();
+            }
+
+            if (process.HasExited)
             {
                 throw new Exception(Process.StandardError.ReadToEnd());
             }
+
+            this.Process = process;
 
             Host = host;
             Port = port;

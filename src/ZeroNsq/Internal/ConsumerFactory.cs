@@ -113,8 +113,8 @@ namespace ZeroNsq.Internal
             if (_options.Lookupd == null || !_options.Lookupd.Any()) return results;
 
             if (_lookupd == null)
-            {   
-                return await Task.Run(() => { return results; });
+            {
+                return await Task.FromResult(results);
             }
 
             foreach (Uri endpointUri in _options.Lookupd)

@@ -1,5 +1,4 @@
-﻿using Jil;
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using ZeroNsq.Helpers;
@@ -81,7 +80,7 @@ namespace ZeroNsq.Protocol
             using (var ms = new MemoryStream(Body))
             using (var reader = new StreamReader(ms))
             {
-                return JSON.Deserialize<TResult>(reader, Options.ExcludeNulls);
+                return reader.DeserializeTo<TResult>();                
             }   
         }
 

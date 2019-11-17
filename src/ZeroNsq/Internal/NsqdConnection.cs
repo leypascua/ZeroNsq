@@ -36,7 +36,7 @@ namespace ZeroNsq.Internal
             _endpoint = endpoint;
             _options = ConnectionOptions.SetDefaults(options);
 
-            if (options.OnHeartBeatRespondedCallback != null)
+            if (_options.OnHeartBeatRespondedCallback != null)
             {
                 _onHeartbeatRespondedCallback = options.OnHeartBeatRespondedCallback;
             }

@@ -1,5 +1,4 @@
-﻿using Jil;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -7,6 +6,8 @@ using System.Linq;
 
 namespace ZeroNsq.Protocol
 {
+    using ZeroNsq.Helpers;
+
     public class Response
     {
         public static readonly byte[] Heartbeat = Encoding.ASCII.GetBytes("_heartbeat_");
@@ -53,7 +54,7 @@ namespace ZeroNsq.Protocol
             using (var ms = new MemoryStream(Data))
             using (var reader = new StreamReader(ms))
             {
-                return JSON.Deserialize<TResp>(reader);
+                return reader.DeserializeTo<TResp>();
             }
         }
 

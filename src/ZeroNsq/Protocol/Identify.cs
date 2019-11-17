@@ -1,4 +1,4 @@
-﻿using Jil;
+﻿using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Reflection;
@@ -60,7 +60,7 @@ namespace ZeroNsq.Protocol
             using (var dataStream = new MemoryStream())
             using (var textWriter = new StreamWriter(dataStream))
             {
-                JSON.Serialize(instance, textWriter, Options.ExcludeNulls);
+                instance.ToJson(textWriter);
                 textWriter.Flush();
 
                 return dataStream.ToArray();

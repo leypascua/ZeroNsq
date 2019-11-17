@@ -185,7 +185,8 @@ namespace ZeroNsq
                         LogProvider.Current.Debug(string.Format("Starting consumer. Topic={0}; Channel={1}", _topicName, _channelName));
                         Task consumerTask = Task.Run(() => 
                             consumer.StartAsync(_channelName, _onMessageReceivedCallbackAsync, _onConnectionErrorCallback, throwConnectionException),
-                            _cancellationTokenSource.Token);
+                            _cancellationTokenSource.Token
+                        );
                     }
                 }
                 catch (BaseException ex)
